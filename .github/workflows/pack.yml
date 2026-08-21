@@ -1,0 +1,35 @@
+name: Release extension zip
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Pack extension
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ vars.SITE_URL }}
+        run: npm run pack
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: new-tab-extension
+          path: |
+            web/public/downloads/new-tab.zip
+            web/public/version.json

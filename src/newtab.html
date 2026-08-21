@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New Tab</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="../icons/favicon-48.png" />
+    <link rel="icon" type="image/png" href="../icons/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      id="google-font-link"
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&display=swap"
+    />
+    <link rel="stylesheet" href="newtab.css" />
+  </head>
+  <body>
+    <div id="update-banner" class="update-banner" hidden>
+      <div class="update-banner__text">
+        <strong>Update available</strong>
+        <span id="update-banner-copy"></span>
+      </div>
+      <div class="update-banner__actions">
+        <a class="update-banner__btn" id="update-download" href="#" target="_blank" rel="noopener noreferrer">Download</a>
+        <button type="button" class="update-banner__dismiss" id="update-dismiss" aria-label="Dismiss update">Dismiss</button>
+      </div>
+    </div>
+
+    <div id="bg" class="bg" aria-hidden="true">
+      <div class="bg__image" id="bg-image"></div>
+      <div class="bg__veil"></div>
+    </div>
+
+    <header class="topbar">
+      <button type="button" class="weather" id="weather" hidden aria-label="Open weather forecast">
+        <span class="weather__icon" id="weather-icon" aria-hidden="true"></span>
+        <div class="weather__text">
+          <span class="weather__temp" id="weather-temp"></span>
+          <span class="weather__cond" id="weather-cond"></span>
+        </div>
+      </button>
+      <button type="button" class="icon-btn" id="settings-open" aria-label="Open settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </header>
+
+    <main class="stage">
+      <time class="clock" id="clock" datetime=""></time>
+      <p class="greeting" id="greeting"></p>
+
+      <form class="search" id="search-form" autocomplete="off">
+        <div class="search__field">
+          <span class="search__leading" id="search-leading" aria-hidden="true"></span>
+          <input
+            class="search__input"
+            id="search-input"
+            type="search"
+            name="q"
+            placeholder="Search the web"
+            spellcheck="false"
+            autofocus
+          />
+        </div>
+        <p class="search__hint" id="search-hint">Press Enter to search · Tab to ask AI</p>
+      </form>
+    </main>
+
+    <footer class="credit" id="photo-credit" hidden>
+      <a id="photo-credit-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+    </footer>
+
+    <!-- Weather forecast -->
+    <div class="overlay" id="forecast" hidden>
+      <div class="panel panel--forecast" role="dialog" aria-labelledby="forecast-title" aria-modal="true">
+        <div class="panel__head">
+          <div>
+            <p class="panel__eyebrow" id="forecast-place">Local weather</p>
+            <h2 class="panel__title" id="forecast-title">Forecast</h2>
+          </div>
+          <button type="button" class="icon-btn" id="forecast-close" aria-label="Close forecast">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="forecast-now" id="forecast-now">
+          <div class="forecast-now__main">
+            <span class="forecast-now__icon" id="forecast-now-icon" aria-hidden="true"></span>
+            <div>
+              <p class="forecast-now__temp" id="forecast-now-temp"></p>
+              <p class="forecast-now__label" id="forecast-now-label"></p>
+            </div>
+          </div>
+          <dl class="forecast-stats" id="forecast-stats"></dl>
+        </div>
+
+        <section class="forecast-section">
+          <h3 class="forecast-section__title">Next 24 hours</h3>
+          <div class="forecast-hourly" id="forecast-hourly"></div>
+        </section>
+
+        <section class="forecast-section">
+          <h3 class="forecast-section__title">7-day</h3>
+          <div class="forecast-daily" id="forecast-daily"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Onboarding -->
+    <div class="overlay" id="onboarding" hidden>
+      <div class="panel panel--setup" role="dialog" aria-labelledby="setup-title" aria-modal="true">
+        <div id="setup-step-name">
+          <p class="panel__eyebrow">Welcome</p>
+          <h1 class="panel__title" id="setup-title">What should we call you?</h1>
+          <p class="panel__lede">Your new tab will greet you by name each day.</p>
+          <form id="setup-form">
+            <label class="field">
+              <span class="field__label">Your name</span>
+              <input class="field__input" id="setup-name" type="text" maxlength="40" placeholder="Lachie" required autofocus />
+            </label>
+            <button type="submit" class="btn btn--primary">Continue</button>
+          </form>
+        </div>
+
+        <div id="setup-step-location" hidden>
+          <p class="panel__eyebrow">Weather</p>
+          <h1 class="panel__title">Share your location?</h1>
+          <p class="panel__lede">Chrome will ask once so we can show local weather on each new tab. You can change this later in settings.</p>
+          <div class="setup-actions">
+            <button type="button" class="btn btn--primary" id="setup-location-allow">Allow location</button>
+            <button type="button" class="btn btn--ghost" id="setup-location-skip">Not now</button>
+          </div>
+          <p class="field__help" id="setup-location-status" hidden></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="overlay" id="settings" hidden>
+      <div class="panel panel--settings" role="dialog" aria-labelledby="settings-title" aria-modal="true">
+        <div class="panel__head">
+          <h2 class="panel__title" id="settings-title">Settings</h2>
+          <button type="button" class="icon-btn" id="settings-close" aria-label="Close settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <nav class="tabs" id="settings-tabs" aria-label="Settings sections">
+          <button type="button" class="tabs__btn is-active" data-tab="general">General</button>
+          <button type="button" class="tabs__btn" data-tab="background">Background</button>
+          <button type="button" class="tabs__btn" data-tab="search">Search & AI</button>
+          <button type="button" class="tabs__btn" data-tab="fonts">Fonts</button>
+        </nav>
+
+        <div class="tab-panels">
+          <section class="tab-panel is-active" data-panel="general">
+            <label class="field">
+              <span class="field__label">Your name</span>
+              <input class="field__input" id="setting-name" type="text" maxlength="40" />
+            </label>
+            <label class="field field--row">
+              <span class="field__label">Show weather</span>
+              <input type="checkbox" id="setting-weather" checked />
+            </label>
+            <p class="field__help">Weather needs a one-time location permission. Click “Enable location” on the weather chip, or turn weather on and allow access when Chrome asks.</p>
+            <label class="field field--row">
+              <span class="field__label">24-hour clock</span>
+              <input type="checkbox" id="setting-24h" />
+            </label>
+          </section>
+
+          <section class="tab-panel" data-panel="background">
+            <label class="field">
+              <span class="field__label">Source</span>
+              <select class="field__input" id="setting-bg-source">
+                <option value="unsplash">Unsplash</option>
+                <option value="custom">Custom uploads</option>
+              </select>
+            </label>
+            <div id="unsplash-options">
+              <label class="field">
+                <span class="field__label">Category</span>
+                <select class="field__input" id="setting-bg-category">
+                  <option value="nature">Nature</option>
+                  <option value="mountains">Mountains</option>
+                  <option value="ocean">Ocean</option>
+                  <option value="cities">Cities</option>
+                  <option value="architecture">Architecture</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="abstract">Abstract</option>
+                  <option value="travel">Travel</option>
+                  <option value="forest">Forest</option>
+                  <option value="night">Night</option>
+                </select>
+              </label>
+              <button type="button" class="btn btn--ghost" id="refresh-bg">New photo</button>
+            </div>
+            <div id="custom-options" hidden>
+              <label class="field">
+                <span class="field__label">Upload images</span>
+                <input class="field__file" id="setting-bg-upload" type="file" accept="image/*" multiple />
+              </label>
+              <div class="thumbs" id="custom-thumbs"></div>
+              <p class="field__help">Uploads stay on this device. One is chosen at random each time.</p>
+            </div>
+          </section>
+
+          <section class="tab-panel" data-panel="search">
+            <label class="field">
+              <span class="field__label">Search engine</span>
+              <select class="field__input" id="setting-search-engine">
+                <option value="google">Google</option>
+                <option value="duckduckgo">DuckDuckGo</option>
+                <option value="bing">Bing</option>
+                <option value="brave">Brave</option>
+                <option value="ecosia">Ecosia</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">AI provider</span>
+              <select class="field__input" id="setting-ai-provider">
+                <option value="acosta">Acosta</option>
+                <option value="chatgpt">ChatGPT</option>
+                <option value="claude">Claude</option>
+                <option value="perplexity">Perplexity</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </label>
+            <p class="field__help">Press Tab in the search bar to switch between web search and your AI provider.</p>
+          </section>
+
+          <section class="tab-panel" data-panel="fonts">
+            <label class="field">
+              <span class="field__label">Preset</span>
+              <select class="field__input" id="setting-font-preset">
+                <option value="Bricolage Grotesque">Bricolage Grotesque</option>
+                <option value="Instrument Serif">Instrument Serif</option>
+                <option value="DM Sans">DM Sans</option>
+                <option value="Fraunces">Fraunces</option>
+                <option value="Space Grotesk">Space Grotesk</option>
+                <option value="Libre Baskerville">Libre Baskerville</option>
+                <option value="Syne">Syne</option>
+                <option value="custom-google">Google Fonts name…</option>
+                <option value="custom-file">Upload font file…</option>
+              </select>
+            </label>
+            <label class="field" id="google-font-field" hidden>
+              <span class="field__label">Google Fonts name</span>
+              <input class="field__input" id="setting-font-google" type="text" placeholder="e.g. Playfair Display" />
+              <span class="field__help">Exact family name from fonts.google.com</span>
+            </label>
+            <label class="field" id="file-font-field" hidden>
+              <span class="field__label">Font file</span>
+              <input class="field__file" id="setting-font-file" type="file" accept=".woff2,.woff,.ttf,.otf" />
+            </label>
+          </section>
+        </div>
+
+        <div class="panel__foot">
+          <button type="button" class="btn btn--primary" id="settings-save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="newtab.js"></script>
+  </body>
+</html>

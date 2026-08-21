@@ -1,0 +1,10 @@
+node_modules/
+web/node_modules/
+web/.next/
+web/public/downloads/
+web/public/version.json
+.DS_Store
+.venv/
+*.log
+.env*
+!.env.example
