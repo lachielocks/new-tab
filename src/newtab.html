@@ -168,27 +168,33 @@
             </label>
             <label class="field field--row">
               <span class="field__label">Show weather</span>
-              <input type="checkbox" id="setting-weather" checked />
+              <span class="switch">
+                <input type="checkbox" id="setting-weather" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+              </span>
             </label>
             <p class="field__help">Weather needs a one-time location permission. Click “Enable location” on the weather chip, or turn weather on and allow access when Chrome asks.</p>
             <label class="field field--row">
               <span class="field__label">24-hour clock</span>
-              <input type="checkbox" id="setting-24h" />
+              <span class="switch">
+                <input type="checkbox" id="setting-24h" />
+                <span class="switch__track" aria-hidden="true"></span>
+              </span>
             </label>
           </section>
 
           <section class="tab-panel" data-panel="background">
             <label class="field">
               <span class="field__label">Source</span>
-              <select class="field__input" id="setting-bg-source">
+              <select class="field__input field__input--select" id="setting-bg-source">
                 <option value="unsplash">Unsplash</option>
                 <option value="custom">Custom uploads</option>
               </select>
             </label>
-            <div id="unsplash-options">
+            <div id="unsplash-options" class="stack">
               <label class="field">
                 <span class="field__label">Category</span>
-                <select class="field__input" id="setting-bg-category">
+                <select class="field__input field__input--select" id="setting-bg-category">
                   <option value="nature">Nature</option>
                   <option value="mountains">Mountains</option>
                   <option value="ocean">Ocean</option>
@@ -203,11 +209,15 @@
               </label>
               <button type="button" class="btn btn--ghost" id="refresh-bg">New photo</button>
             </div>
-            <div id="custom-options" hidden>
-              <label class="field">
+            <div id="custom-options" class="stack" hidden>
+              <div class="field">
                 <span class="field__label">Upload images</span>
-                <input class="field__file" id="setting-bg-upload" type="file" accept="image/*" multiple />
-              </label>
+                <label class="dropzone" id="bg-dropzone">
+                  <input class="dropzone__input" id="setting-bg-upload" type="file" accept="image/*" multiple />
+                  <span class="dropzone__title">Drop images here</span>
+                  <span class="dropzone__hint">or click to browse · PNG, JPG, WebP</span>
+                </label>
+              </div>
               <div class="thumbs" id="custom-thumbs"></div>
               <p class="field__help">Uploads stay on this device. One is chosen at random each time.</p>
             </div>
@@ -216,7 +226,7 @@
           <section class="tab-panel" data-panel="search">
             <label class="field">
               <span class="field__label">Search engine</span>
-              <select class="field__input" id="setting-search-engine">
+              <select class="field__input field__input--select" id="setting-search-engine">
                 <option value="google">Google</option>
                 <option value="duckduckgo">DuckDuckGo</option>
                 <option value="bing">Bing</option>
@@ -226,7 +236,7 @@
             </label>
             <label class="field">
               <span class="field__label">AI provider</span>
-              <select class="field__input" id="setting-ai-provider">
+              <select class="field__input field__input--select" id="setting-ai-provider">
                 <option value="acosta">Acosta</option>
                 <option value="chatgpt">ChatGPT</option>
                 <option value="claude">Claude</option>
@@ -240,7 +250,7 @@
           <section class="tab-panel" data-panel="fonts">
             <label class="field">
               <span class="field__label">Preset</span>
-              <select class="field__input" id="setting-font-preset">
+              <select class="field__input field__input--select" id="setting-font-preset">
                 <option value="Bricolage Grotesque">Bricolage Grotesque</option>
                 <option value="Instrument Serif">Instrument Serif</option>
                 <option value="DM Sans">DM Sans</option>
@@ -257,10 +267,14 @@
               <input class="field__input" id="setting-font-google" type="text" placeholder="e.g. Playfair Display" />
               <span class="field__help">Exact family name from fonts.google.com</span>
             </label>
-            <label class="field" id="file-font-field" hidden>
+            <div class="field" id="file-font-field" hidden>
               <span class="field__label">Font file</span>
-              <input class="field__file" id="setting-font-file" type="file" accept=".woff2,.woff,.ttf,.otf" />
-            </label>
+              <label class="dropzone dropzone--compact">
+                <input class="dropzone__input" id="setting-font-file" type="file" accept=".woff2,.woff,.ttf,.otf" />
+                <span class="dropzone__title">Drop a font file</span>
+                <span class="dropzone__hint">or click to browse · WOFF2, WOFF, TTF, OTF</span>
+              </label>
+            </div>
           </section>
         </div>
 

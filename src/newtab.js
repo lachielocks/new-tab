@@ -53,6 +53,7 @@ const els = {
   customOptions: document.getElementById("custom-options"),
   customThumbs: document.getElementById("custom-thumbs"),
   refreshBg: document.getElementById("refresh-bg"),
+  bgDropzone: document.getElementById("bg-dropzone"),
   settingSearchEngine: document.getElementById("setting-search-engine"),
   settingAiProvider: document.getElementById("setting-ai-provider"),
   settingFontPreset: document.getElementById("setting-font-preset"),
@@ -159,15 +160,12 @@ function bindEvents() {
   els.settingFontPreset.addEventListener("change", syncFontFields);
 
   els.settingBgUpload.addEventListener("change", async () => {
-    const files = [...(els.settingBgUpload.files || [])];
-    for (const file of files) {
-      if (!file.type.startsWith("image/")) continue;
-      if (file.size > 4.5 * 1024 * 1024) continue;
-      const dataUrl = await readAsDataUrl(file);
-      draftCustomImages.push(dataUrl);
-    }
+    await addImageFiles([...(els.settingBgUpload.files || [])]);
     els.settingBgUpload.value = "";
-    renderThumbs();
+  });
+
+  bindDropzone(els.bgDropzone, async (files) => {
+    await addImageFiles(files);
   });
 
   els.refreshBg.addEventListener("click", async () => {
@@ -188,6 +186,22 @@ function bindEvents() {
     const { dataUrl, format } = await readFontFile(file);
     draftFontDataUrl = dataUrl;
     draftFontFormat = format;
+    const zone = els.settingFontFile.closest(".dropzone");
+    if (zone) {
+      const title = zone.querySelector(".dropzone__title");
+      if (title) title.textContent = file.name;
+    }
+  });
+
+  bindDropzone(els.settingFontFile?.closest(".dropzone"), async (files) => {
+    const file = files.find((f) => /\.(woff2?|ttf|otf)$/i.test(f.name) || f.type.includes("font"));
+    if (!file) return;
+    const { dataUrl, format } = await readFontFile(file);
+    draftFontDataUrl = dataUrl;
+    draftFontFormat = format;
+    const zone = els.settingFontFile.closest(".dropzone");
+    const title = zone?.querySelector(".dropzone__title");
+    if (title) title.textContent = file.name;
   });
 
   els.searchInput.addEventListener("keydown", (e) => {
@@ -400,15 +414,78 @@ async function applyBackground(fromSettings) {
   paintBackground(photo);
 }
 
-function paintBackground(photo) {
-  els.bgImage.style.backgroundImage = `url("${photo.url}")`;
-  if (photo.credit) {
-    els.photoCredit.hidden = false;
-    els.photoCreditLink.textContent = photo.credit;
-    els.photoCreditLink.href = photo.link || "#";
-  } else {
-    els.photoCredit.hidden = true;
+function paintBackground(photo, { allowRetry = true } = {}) {
+  if (!photo?.url) {
+    showBackgroundFallback();
+    return;
   }
+
+  const img = new Image();
+  img.onload = () => {
+    els.bgImage.classList.remove("is-fallback");
+    els.bgImage.style.backgroundImage = `url("${photo.url}")`;
+    if (photo.credit) {
+      els.photoCredit.hidden = false;
+      els.photoCreditLink.textContent = photo.credit;
+      els.photoCreditLink.href = photo.link || "#";
+    } else {
+      els.photoCredit.hidden = true;
+    }
+  };
+  img.onerror = () => {
+    if (allowRetry && settings.lastUnsplash?.url && settings.lastUnsplash.url !== photo.url) {
+      paintBackground(settings.lastUnsplash, { allowRetry: false });
+      return;
+    }
+    showBackgroundFallback();
+  };
+  img.src = photo.url;
+}
+
+function showBackgroundFallback() {
+  els.bgImage.classList.add("is-fallback");
+  els.bgImage.style.backgroundImage = "";
+  els.photoCredit.hidden = true;
+}
+
+/**
+ * @param {File[]} files
+ */
+async function addImageFiles(files) {
+  for (const file of files) {
+    if (!file.type.startsWith("image/")) continue;
+    if (file.size > 4.5 * 1024 * 1024) continue;
+    const dataUrl = await readAsDataUrl(file);
+    draftCustomImages.push(dataUrl);
+  }
+  renderThumbs();
+}
+
+/**
+ * @param {HTMLElement | null} zone
+ * @param {(files: File[]) => void | Promise<void>} onFiles
+ */
+function bindDropzone(zone, onFiles) {
+  if (!zone) return;
+  zone.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    zone.classList.add("is-dragover");
+  });
+  zone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    zone.classList.add("is-dragover");
+  });
+  zone.addEventListener("dragleave", (e) => {
+    if (!zone.contains(/** @type {Node} */ (e.relatedTarget))) {
+      zone.classList.remove("is-dragover");
+    }
+  });
+  zone.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    zone.classList.remove("is-dragover");
+    const files = [...(e.dataTransfer?.files || [])];
+    if (files.length) await onFiles(files);
+  });
 }
 
 function updateWeatherVisibility() {
@@ -440,25 +517,44 @@ async function loadWeather() {
     if (!weather || !settings.showWeather) return;
 
     if (weather.needsLocation) {
-      els.weatherTemp.textContent = "";
-      els.weatherCond.textContent = weather.label;
-      els.weatherIcon.innerHTML = weather.iconHtml;
-      els.weather.classList.add("weather--needs-location");
-      els.weather.title = "Click to allow location access for weather";
-      els.weather.hidden = false;
+      showWeatherChip(weather, { needsLocation: true });
       return;
     }
 
-    els.weatherTemp.textContent = `${weather.temp}°`;
-    els.weatherCond.textContent = weather.label;
-    els.weatherIcon.innerHTML = weather.iconHtml;
-    els.weather.classList.remove("weather--needs-location");
-    els.weather.title = "Open forecast";
-    els.weather.hidden = false;
+    await chrome.storage.local.set({ lastWeather: weather });
+    showWeatherChip(weather);
   } catch {
+    const cached = await chrome.storage.local.get("lastWeather");
+    if (cached.lastWeather && settings.showWeather) {
+      showWeatherChip(cached.lastWeather, { cached: true });
+      return;
+    }
     els.weather.hidden = true;
     els.weather.classList.remove("weather--needs-location");
   }
+}
+
+/**
+ * @param {{temp: number, label: string, iconHtml: string}} weather
+ * @param {{needsLocation?: boolean, cached?: boolean}} [opts]
+ */
+function showWeatherChip(weather, opts = {}) {
+  if (opts.needsLocation) {
+    els.weatherTemp.textContent = "";
+    els.weatherCond.textContent = weather.label;
+    els.weatherIcon.innerHTML = weather.iconHtml;
+    els.weather.classList.add("weather--needs-location");
+    els.weather.title = "Click to allow location access for weather";
+    els.weather.hidden = false;
+    return;
+  }
+
+  els.weatherTemp.textContent = `${weather.temp}°`;
+  els.weatherCond.textContent = opts.cached ? `${weather.label} · offline` : weather.label;
+  els.weatherIcon.innerHTML = weather.iconHtml;
+  els.weather.classList.remove("weather--needs-location");
+  els.weather.title = opts.cached ? "Showing last known weather (offline)" : "Open forecast";
+  els.weather.hidden = false;
 }
 
 async function openForecast() {
@@ -473,8 +569,14 @@ async function openForecast() {
 
   try {
     const data = await fetchForecast();
+    await chrome.storage.local.set({ lastForecast: data });
     renderForecast(data);
   } catch {
+    const cached = await chrome.storage.local.get("lastForecast");
+    if (cached.lastForecast) {
+      renderForecast(cached.lastForecast, { cached: true });
+      return;
+    }
     els.forecastPlace.textContent = "Couldn't load forecast";
   }
 }
@@ -485,10 +587,13 @@ function closeForecast() {
 
 /**
  * @param {Awaited<ReturnType<typeof fetchForecast>>} data
+ * @param {{cached?: boolean}} [opts]
  */
-function renderForecast(data) {
+function renderForecast(data, opts = {}) {
   const { current, hourly, daily, place } = data;
-  els.forecastPlace.textContent = place || "Local weather";
+  els.forecastPlace.textContent = opts.cached
+    ? `${place || "Local weather"} · offline`
+    : place || "Local weather";
   els.forecastNowIcon.innerHTML = current.iconHtml;
   els.forecastNowTemp.textContent = `${current.temp}°`;
   els.forecastNowLabel.textContent = current.label;

@@ -160,6 +160,16 @@ a {
   animation: bg-drift 48s ease-in-out infinite alternate;
 }
 
+.bg__image.is-fallback {
+  background-image: none !important;
+  background:
+    radial-gradient(ellipse 70% 55% at 20% 15%, rgba(212, 165, 116, 0.28), transparent 55%),
+    radial-gradient(ellipse 60% 50% at 85% 20%, rgba(70, 110, 140, 0.3), transparent 50%),
+    linear-gradient(165deg, #0e1115 0%, #1c2228 45%, #12161b 100%);
+  animation: none;
+  transform: none;
+}
+
 .bg__veil {
   position: absolute;
   inset: 0;
@@ -184,6 +194,11 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   padding: 1.5rem 1.75rem;
+}
+
+.topbar > .icon-btn {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .weather {
@@ -711,19 +726,141 @@ a {
 .field__input,
 .field__file {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid var(--glass-border);
-  background: rgba(0, 0, 0, 0.28);
+  background-color: rgba(0, 0, 0, 0.28);
   padding: 0.75rem 0.9rem;
   outline: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.field__input:hover {
+  background-color: rgba(0, 0, 0, 0.36);
 }
 
 .field__input:focus {
   border-color: rgba(212, 165, 116, 0.55);
+  background-color: rgba(0, 0, 0, 0.4);
 }
 
-.field__file {
-  padding: 0.55rem;
+.field__input--select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f4f0e8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 1rem;
+  cursor: pointer;
+}
+
+.field__input--select option {
+  background: #1a1e22;
+  color: var(--ink);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  width: 2.6rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+}
+
+.switch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.switch__track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--glass-border);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.switch__track::after {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: var(--ink);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.switch input:checked + .switch__track {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.switch input:checked + .switch__track::after {
+  transform: translateX(1.1rem);
+  background: var(--accent-ink);
+}
+
+.switch input:focus-visible + .switch__track {
+  outline: 2px solid rgba(212, 165, 116, 0.55);
+  outline-offset: 2px;
+}
+
+.dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 7.5rem;
+  padding: 1.15rem 1rem;
+  border-radius: 16px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.22);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.dropzone--compact {
+  min-height: 5.5rem;
+}
+
+.dropzone:hover,
+.dropzone.is-dragover {
+  border-color: rgba(212, 165, 116, 0.65);
+  background: rgba(212, 165, 116, 0.08);
+}
+
+.dropzone__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.dropzone__title {
+  font-size: 0.95rem;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+}
+
+.dropzone__hint {
+  font-size: 0.78rem;
+  color: var(--ink-faint);
 }
 
 .btn {
@@ -736,11 +873,15 @@ a {
   border-radius: 999px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  transition: transform 0.15s ease, background 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.15s ease, background 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
 }
 
 .btn:hover {
   transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
 }
 
 .btn--primary {
@@ -759,6 +900,11 @@ a {
   border: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.05);
   color: var(--ink);
+}
+
+.btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .setup-actions {
