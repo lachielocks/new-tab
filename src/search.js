@@ -80,19 +80,19 @@ function acostaIcon() {
 }
 
 function openaiIcon() {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M22.28 9.82a5.95 5.95 0 0 0-.51-4.81 6.04 6.04 0 0 0-6.51-2.9A5.98 5.98 0 0 0 10.05 1a6.02 6.02 0 0 0-5.71 4.16 5.95 5.95 0 0 0-4 2.9 6.04 6.04 0 0 0 .74 7.07 5.95 5.95 0 0 0 .51 4.81 6.04 6.04 0 0 0 6.51 2.9A5.98 5.98 0 0 0 13.95 23a6.02 6.02 0 0 0 5.71-4.16 5.95 5.95 0 0 0 4-2.9 6.04 6.04 0 0 0-.74-7.07 6.1 6.1 0 0 0-.64.95z"/></svg>`;
+  return `<img src="../icons/gpt-white.png" alt="" width="18" height="18" />`;
 }
 
 function claudeIcon() {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#D97757" d="M12.5 2.2 16.8 14H20l-5.2-12h-2.3zm-1 0L6 14h3.2l4.3-11.8H11.5zM4 16.2l1.4 3.2h13.2L20 16.2H4z"/></svg>`;
+  return `<img src="../icons/claude.png" alt="" width="18" height="18" />`;
 }
 
 function perplexityIcon() {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#20808D" d="M4 4h3.2v6.4L12 6.2l4.8 4.2V4H20v16h-3.2v-6.4L12 17.8 7.2 13.6V20H4V4z"/></svg>`;
+  return `<img src="../icons/perplexity.png" alt="" width="18" height="18" />`;
 }
 
 function geminiIcon() {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#8E83F5" d="M12 2c.4 4.4 1.8 7.2 5.2 9.2C13.8 13.2 12.4 16 12 20.4 11.6 16 10.2 13.2 6.8 11.2 10.2 9.2 11.6 6.4 12 2z"/></svg>`;
+  return `<img src="../icons/gemini.png" alt="" width="18" height="18" />`;
 }
 
 /**

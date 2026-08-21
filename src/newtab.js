@@ -4,6 +4,7 @@ import { pickUnsplash, pickCustom } from "./backgrounds.js";
 import { buildDestination, leadingIconHtml, placeholderFor } from "./search.js";
 import { applyFont, readFontFile } from "./fonts.js";
 import { checkForUpdate } from "./updates.js";
+import { enhanceSelects, syncSelectUi } from "./dropdown.js";
 
 /** @type {import('./types.js').Settings} */
 let settings;
@@ -96,6 +97,7 @@ async function init() {
 
   clockTimer = window.setInterval(renderClock, 1000);
   bindEvents();
+  enhanceSelects();
   maybeShowUpdate();
 }
 
@@ -264,6 +266,11 @@ function openSettings() {
   draftCustomImages = [...(settings.customImages || [])];
   draftFontDataUrl = settings.customFontDataUrl || "";
   draftFontFormat = settings.customFontFormat || "";
+  syncSelectUi(els.settingBgSource);
+  syncSelectUi(els.settingBgCategory);
+  syncSelectUi(els.settingSearchEngine);
+  syncSelectUi(els.settingAiProvider);
+  syncSelectUi(els.settingFontPreset);
   syncBgSourceUi();
   syncFontFields();
   renderThumbs();
@@ -272,6 +279,13 @@ function openSettings() {
 
 function closeSettings() {
   els.settings.hidden = true;
+  document.querySelectorAll(".menu.is-open").forEach((menu) => {
+    menu.classList.remove("is-open");
+    const trigger = menu.querySelector(".menu__trigger");
+    const list = menu.querySelector(".menu__list");
+    if (trigger) trigger.setAttribute("aria-expanded", "false");
+    if (list) list.hidden = true;
+  });
 }
 
 async function saveSettingsFromForm() {
