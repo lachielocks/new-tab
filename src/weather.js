@@ -210,29 +210,24 @@ export async function fetchForecast() {
  * @returns {Promise<boolean>}
  */
 export async function hasGeolocationPermission() {
+  if (!navigator.geolocation) return false;
   try {
-    return await chrome.permissions.contains({ permissions: ["geolocation"] });
+    if (navigator.permissions?.query) {
+      const status = await navigator.permissions.query({ name: "geolocation" });
+      return status.state === "granted";
+    }
   } catch {
-    return false;
+    // permissions.query may reject for geolocation in some contexts
   }
+  const cached = await chrome.storage.local.get(COORDS_KEY);
+  return Boolean(cached[COORDS_KEY]);
 }
 
 /**
- * Ask Chrome for location access, then resolve coordinates.
- * Must be called from a user gesture so Chrome shows its permission prompt.
+ * Ask the browser for location access via a user gesture.
  * @returns {Promise<boolean>}
  */
 export async function requestLocationAccess() {
-  try {
-    const already = await chrome.permissions.contains({ permissions: ["geolocation"] });
-    if (!already) {
-      const granted = await chrome.permissions.request({ permissions: ["geolocation"] });
-      if (!granted) return false;
-    }
-  } catch {
-    return false;
-  }
-
   if (!navigator.geolocation) return false;
 
   return new Promise((resolve) => {

@@ -6,8 +6,7 @@
   "chrome_url_overrides": {
     "newtab": "src/newtab.html"
   },
-  "permissions": ["storage"],
-  "optional_permissions": ["geolocation"],
+  "permissions": ["storage", "geolocation"],
   "host_permissions": [
     "https://api.open-meteo.com/*",
     "https://images.unsplash.com/*",
