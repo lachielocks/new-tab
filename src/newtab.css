@@ -814,16 +814,13 @@ a {
 }
 
 .menu__list {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 0.4rem);
-  left: 0;
-  right: 0;
+  position: fixed;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  max-height: 15rem;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 0.35rem;
   border-radius: 14px;
   border: 1px solid var(--glass-border);

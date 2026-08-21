@@ -4,7 +4,7 @@ import { pickUnsplash, pickCustom } from "./backgrounds.js";
 import { buildDestination, leadingIconHtml, placeholderFor } from "./search.js";
 import { applyFont, readFontFile } from "./fonts.js";
 import { checkForUpdate } from "./updates.js";
-import { enhanceSelects, syncSelectUi } from "./dropdown.js";
+import { enhanceSelects, syncSelectUi, closeAllMenus } from "./dropdown.js";
 
 /** @type {import('./types.js').Settings} */
 let settings;
@@ -279,13 +279,7 @@ function openSettings() {
 
 function closeSettings() {
   els.settings.hidden = true;
-  document.querySelectorAll(".menu.is-open").forEach((menu) => {
-    menu.classList.remove("is-open");
-    const trigger = menu.querySelector(".menu__trigger");
-    const list = menu.querySelector(".menu__list");
-    if (trigger) trigger.setAttribute("aria-expanded", "false");
-    if (list) list.hidden = true;
-  });
+  closeAllMenus();
 }
 
 async function saveSettingsFromForm() {
