@@ -1,0 +1,59 @@
+.doc {
+  max-width: 40rem;
+}
+
+.doc .eyebrow {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.doc h1 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(2.2rem, 5vw, 3.2rem);
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.doc .lede {
+  margin: 0 0 2rem;
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+
+.doc section {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.doc h2 {
+  margin: 0 0 0.55rem;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.doc p,
+.doc li {
+  color: var(--ink-muted);
+  line-height: 1.55;
+}
+
+.doc p {
+  margin: 0 0 0.85rem;
+}
+
+.doc ul {
+  margin: 0 0 0.85rem;
+  padding-left: 1.2rem;
+}
+
+.doc li {
+  margin-bottom: 0.4rem;
+}
+
+.doc a {
+  color: var(--accent);
+}

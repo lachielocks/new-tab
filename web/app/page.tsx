@@ -34,7 +34,7 @@ export default function Home() {
         <nav className={styles.nav__links} aria-label="Page">
           <a href="#install">Install</a>
           <a href="#update">Update</a>
-          <a href="#features">Features</a>
+          <a href="/privacy">Privacy</a>
         </nav>
       </header>
 
@@ -155,6 +155,8 @@ export default function Home() {
       <footer className={styles.footer}>
         <span>Version {version.version}</span>
         <span>
+          <a href="/privacy">Privacy</a>
+          {" · "}
           <a href="/version.json">version.json</a>
           {" · "}
           <a href="/download">download</a>
