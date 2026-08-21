@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Image from "next/image";
+import Preview from "./Preview";
 import styles from "./page.module.css";
 
 type VersionInfo = {
@@ -32,6 +33,7 @@ export default function Home() {
           New Tab
         </a>
         <nav className={styles.nav__links} aria-label="Page">
+          <a href="#preview">Preview</a>
           <a href="#install">Install</a>
           <a href="#update">Update</a>
           <a href="/privacy">Privacy</a>
@@ -59,7 +61,11 @@ export default function Home() {
         </div>
       </section>
 
-      <section className={styles.section} id="install">
+      <section className={styles.previewSection} id="preview">
+        <Preview />
+      </section>
+
+      <section className={`${styles.section} ${styles.reveal}`} id="install">
         <h2>Install in developer mode</h2>
         <p>
           Chrome only auto-updates store extensions. This build installs unpacked — you load
@@ -110,7 +116,7 @@ export default function Home() {
         </ol>
       </section>
 
-      <section className={styles.section} id="update">
+      <section className={`${styles.section} ${styles.reveal}`} id="update">
         <h2>Updating</h2>
         <p>
           Every deploy of this site packs a fresh zip and publishes{" "}
@@ -129,7 +135,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className={styles.section} id="features">
+      <section className={`${styles.section} ${styles.reveal}`} id="features">
         <h2>What you get</h2>
         <p>Everything from the original brief, without the clutter.</p>
         <div className={styles.features}>
