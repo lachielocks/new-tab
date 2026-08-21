@@ -44,6 +44,8 @@ const els = {
   settingsOpen: document.getElementById("settings-open"),
   settingsClose: document.getElementById("settings-close"),
   settingsSave: document.getElementById("settings-save"),
+  settingsFoot: document.getElementById("settings-foot"),
+  aboutVersion: document.getElementById("about-version"),
   settingName: document.getElementById("setting-name"),
   settingWeather: document.getElementById("setting-weather"),
   setting24h: document.getElementById("setting-24h"),
@@ -78,6 +80,7 @@ let clockTimer = 0;
 async function init() {
   settings = await loadSettings();
   searchMode = settings.searchMode || "web";
+  els.aboutVersion.textContent = chrome.runtime.getManifest().version;
   applyFont(settings);
   renderClock();
   renderGreeting();
@@ -156,6 +159,7 @@ function bindEvents() {
     document.querySelectorAll(".tab-panel").forEach((p) => {
       p.classList.toggle("is-active", p.dataset.panel === tab);
     });
+    els.settingsFoot.hidden = tab === "about";
   });
 
   els.settingBgSource.addEventListener("change", syncBgSourceUi);
@@ -274,6 +278,8 @@ function openSettings() {
   syncBgSourceUi();
   syncFontFields();
   renderThumbs();
+  const activeTab = document.querySelector(".tabs__btn.is-active")?.dataset.tab;
+  els.settingsFoot.hidden = activeTab === "about";
   els.settings.hidden = false;
 }
 

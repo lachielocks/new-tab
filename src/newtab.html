@@ -158,6 +158,7 @@
           <button type="button" class="tabs__btn" data-tab="background">Background</button>
           <button type="button" class="tabs__btn" data-tab="search">Search & AI</button>
           <button type="button" class="tabs__btn" data-tab="fonts">Fonts</button>
+          <button type="button" class="tabs__btn" data-tab="about">About</button>
         </nav>
 
         <div class="tab-panels">
@@ -276,9 +277,23 @@
               </label>
             </div>
           </section>
+
+          <section class="tab-panel" data-panel="about">
+            <div class="about">
+              <img class="about__mark" src="../icons/favicon-48.png" alt="" width="48" height="48" />
+              <h3 class="about__name">New Tab</h3>
+              <p class="about__version">Version <span id="about-version"></span></p>
+              <p class="about__lede">A calm new tab with weather, clock, backgrounds, search, and AI — all on this device.</p>
+              <ul class="about__list">
+                <li>Weather from Open-Meteo</li>
+                <li>Photos from Unsplash</li>
+                <li>Name and uploads stay local</li>
+              </ul>
+            </div>
+          </section>
         </div>
 
-        <div class="panel__foot">
+        <div class="panel__foot" id="settings-foot">
           <button type="button" class="btn btn--primary" id="settings-save">Save</button>
         </div>
       </div>
