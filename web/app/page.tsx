@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Image from "next/image";
+import Link from "next/link";
 import Preview from "./Preview";
 import styles from "./page.module.css";
 
@@ -28,15 +29,15 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <header className={styles.nav}>
-        <a className={styles.brand} href="/">
+        <Link className={styles.brand} href="/">
           <Image src="/mark.png" alt="" width={28} height={28} />
           New Tab
-        </a>
+        </Link>
         <nav className={styles.nav__links} aria-label="Page">
           <a href="#preview">Preview</a>
           <a href="#install">Install</a>
           <a href="#update">Update</a>
-          <a href="/privacy">Privacy</a>
+          <Link href="/privacy">Privacy</Link>
         </nav>
       </header>
 
@@ -161,7 +162,7 @@ export default function Home() {
       <footer className={styles.footer}>
         <span>Version {version.version}</span>
         <span>
-          <a href="/privacy">Privacy</a>
+          <Link href="/privacy">Privacy</Link>
           {" · "}
           <a href="/version.json">version.json</a>
           {" · "}

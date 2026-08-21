@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import styles from "../page.module.css";
 import doc from "./privacy.module.css";
 
@@ -12,13 +13,13 @@ export default function PrivacyPage() {
   return (
     <div className={styles.page}>
       <header className={styles.nav}>
-        <a className={styles.brand} href="/">
+        <Link className={styles.brand} href="/">
           <Image src="/mark.png" alt="" width={28} height={28} />
           New Tab
-        </a>
+        </Link>
         <nav className={styles.nav__links} aria-label="Page">
-          <a href="/#install">Install</a>
-          <a href="/privacy">Privacy</a>
+          <Link href="/#install">Install</Link>
+          <Link href="/privacy">Privacy</Link>
         </nav>
       </header>
 
@@ -138,10 +139,10 @@ export default function PrivacyPage() {
 
       <footer className={styles.footer}>
         <span>
-          <a href="/">Home</a>
+          <Link href="/">Home</Link>
         </span>
         <span>
-          <a href="/privacy">Privacy</a>
+          <Link href="/privacy">Privacy</Link>
           {" · "}
           <a href="/download">Download</a>
         </span>

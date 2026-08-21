@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
+import PageFade from "./PageFade";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({
@@ -19,7 +20,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={display.variable}>
-      <body>{children}</body>
+      <body>
+        <PageFade>{children}</PageFade>
+      </body>
     </html>
   );
 }
