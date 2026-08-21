@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Image from "next/image";
 import Link from "next/link";
+import PageTransition from "./PageTransition";
 import Preview from "./Preview";
 import styles from "./page.module.css";
 
@@ -27,6 +28,7 @@ export default function Home() {
   const version = getVersion();
 
   return (
+    <PageTransition>
     <div className={styles.page}>
       <header className={styles.nav}>
         <Link className={styles.brand} href="/">
@@ -37,7 +39,9 @@ export default function Home() {
           <a href="#preview">Preview</a>
           <a href="#install">Install</a>
           <a href="#update">Update</a>
-          <Link href="/privacy">Privacy</Link>
+          <Link href="/privacy" transitionTypes={["nav-forward"]}>
+            Privacy
+          </Link>
         </nav>
       </header>
 
@@ -162,7 +166,9 @@ export default function Home() {
       <footer className={styles.footer}>
         <span>Version {version.version}</span>
         <span>
-          <Link href="/privacy">Privacy</Link>
+          <Link href="/privacy" transitionTypes={["nav-forward"]}>
+            Privacy
+          </Link>
           {" · "}
           <a href="/version.json">version.json</a>
           {" · "}
@@ -170,5 +176,6 @@ export default function Home() {
         </span>
       </footer>
     </div>
+    </PageTransition>
   );
 }
