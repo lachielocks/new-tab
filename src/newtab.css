@@ -863,9 +863,7 @@ a {
   width: 1.15rem;
   height: 1.15rem;
   object-fit: contain;
-  border-radius: 4px;
   flex-shrink: 0;
-  background: #000;
 }
 
 .menu__text {
