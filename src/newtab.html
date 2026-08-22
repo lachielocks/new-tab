@@ -28,57 +28,304 @@
       </div>
     </div>
 
-    <div id="bg" class="bg" aria-hidden="true">
-      <div class="bg__image" id="bg-image"></div>
-      <div class="bg__veil"></div>
-    </div>
-
-    <header class="topbar">
-      <button type="button" class="weather" id="weather" hidden aria-label="Open weather forecast">
-        <span class="weather__icon" id="weather-icon" aria-hidden="true"></span>
-        <div class="weather__text">
-          <span class="weather__temp" id="weather-temp"></span>
-          <span class="weather__cond" id="weather-cond"></span>
+    <div class="app-shell" id="app-shell">
+      <div class="preview" id="preview">
+        <div id="bg" class="bg" aria-hidden="true">
+          <div class="bg__image" id="bg-image"></div>
+          <div class="bg__veil"></div>
         </div>
-      </button>
-      <button type="button" class="icon-btn" id="settings-open" aria-label="Open settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-      </button>
-    </header>
 
-    <main class="stage">
-      <time class="clock" id="clock" datetime=""></time>
-      <p class="greeting" id="greeting"></p>
+        <header class="topbar" id="topbar">
+          <button type="button" class="weather" id="weather" hidden aria-label="Open weather forecast">
+            <span class="weather__icon" id="weather-icon" aria-hidden="true"></span>
+            <div class="weather__text">
+              <span class="weather__temp" id="weather-temp"></span>
+              <span class="weather__cond" id="weather-cond"></span>
+            </div>
+          </button>
+          <button type="button" class="icon-btn" id="settings-open" aria-label="Open settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </header>
 
-      <div class="search-zone" id="search-zone">
-        <form class="search" id="search-form" autocomplete="off">
-          <div class="search__field">
-            <span class="search__leading" id="search-leading" aria-hidden="true"></span>
-            <input
-              class="search__input"
-              id="search-input"
-              type="search"
-              name="q"
-              placeholder="Search the web"
-              spellcheck="false"
-              autofocus
-            />
+        <main class="stage">
+          <time class="clock" id="clock" datetime=""></time>
+          <p class="greeting" id="greeting"></p>
+
+          <div class="search-zone" id="search-zone">
+            <form class="search" id="search-form" autocomplete="off">
+              <div class="search__field">
+                <span class="search__leading" id="search-leading" aria-hidden="true"></span>
+                <input
+                  class="search__input"
+                  id="search-input"
+                  type="search"
+                  name="q"
+                  placeholder="Search the web"
+                  spellcheck="false"
+                  autofocus
+                />
+              </div>
+              <p class="search__hint" id="search-hint">Press Enter to search · Tab to ask AI</p>
+            </form>
+
+            <div class="quick-links-zone" id="quick-links-zone" hidden>
+              <nav class="quick-links" id="quick-links" aria-label="Quick links"></nav>
+            </div>
           </div>
-          <p class="search__hint" id="search-hint">Press Enter to search · Tab to ask AI</p>
-        </form>
+        </main>
 
-        <div class="quick-links-zone" id="quick-links-zone" hidden>
-          <nav class="quick-links" id="quick-links" aria-label="Quick links"></nav>
-        </div>
+        <footer class="credit" id="photo-credit" hidden>
+          <a id="photo-credit-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+        </footer>
       </div>
-    </main>
 
-    <footer class="credit" id="photo-credit" hidden>
-      <a id="photo-credit-link" href="#" target="_blank" rel="noopener noreferrer"></a>
-    </footer>
+      <aside class="settings-sidebar" id="settings" hidden aria-hidden="true" aria-label="Settings">
+        <div class="settings-sidebar__panel">
+        <header class="settings-sidebar__head">
+          <h2 class="settings-sidebar__title" id="settings-title">Settings</h2>
+          <button type="button" class="icon-btn" id="settings-close" aria-label="Close settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            </svg>
+          </button>
+        </header>
+
+        <nav class="settings-nav" id="settings-tabs" aria-label="Settings sections">
+          <button type="button" class="settings-nav__btn is-active" data-tab="general">General</button>
+          <button type="button" class="settings-nav__btn" data-tab="links">Links</button>
+          <button type="button" class="settings-nav__btn" data-tab="background">Background</button>
+          <button type="button" class="settings-nav__btn" data-tab="search">Search & AI</button>
+          <button type="button" class="settings-nav__btn" data-tab="fonts">Fonts</button>
+          <button type="button" class="settings-nav__btn" data-tab="about">About</button>
+        </nav>
+
+        <div class="settings-sidebar__main">
+          <div class="settings-content">
+            <div class="tab-panels">
+              <section class="tab-panel is-active" data-panel="general">
+                <p class="panel__eyebrow">On this page</p>
+                <label class="field field--row">
+                  <span class="field__label">Clock</span>
+                  <span class="switch">
+                    <input type="checkbox" id="setting-show-clock" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <label class="field field--row">
+                  <span class="field__label">Greeting</span>
+                  <span class="switch">
+                    <input type="checkbox" id="setting-show-greeting" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <label class="field field--row">
+                  <span class="field__label">Search bar</span>
+                  <span class="switch">
+                    <input type="checkbox" id="setting-show-search" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <label class="field field--row">
+                  <span class="field__label">Keyboard shortcuts hint</span>
+                  <span class="switch">
+                    <input type="checkbox" id="setting-show-search-hint" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <p class="field__help">Shows “Press Enter to search · Tab to ask AI” beneath the search bar.</p>
+                <label class="field field--row">
+                  <span class="field__label">Weather</span>
+                  <span class="switch">
+                    <input type="checkbox" id="setting-weather" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <p class="field__help">Weather needs a one-time location permission. Click “Enable location” on the weather chip, or turn weather on and allow access when Chrome asks.</p>
+                <label class="field field--row">
+                  <span class="field__label">Photo credit</span>
+                  <span class="switch">
+                    <input type="checkbox" id="setting-show-photo-credit" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <label class="field field--row">
+                  <span class="field__label">Settings button</span>
+                  <span class="switch">
+                    <input type="checkbox" id="setting-show-settings-button" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <p class="field__help">Turn off the settings button to open settings from this extension’s icon in Chrome’s toolbar.</p>
+                <p class="panel__eyebrow settings-section__eyebrow">Personal</p>
+                <label class="field">
+                  <span class="field__label">Your name</span>
+                  <input class="field__input" id="setting-name" type="text" maxlength="40" />
+                </label>
+                <label class="field field--row">
+                  <span class="field__label">24-hour clock</span>
+                  <span class="switch">
+                    <input type="checkbox" id="setting-24h" />
+                    <span class="switch__track" aria-hidden="true"></span>
+                  </span>
+                </label>
+              </section>
+
+              <section class="tab-panel" data-panel="links">
+                <label class="field field--row">
+                  <span class="field__label">Quick links</span>
+                  <span class="switch">
+                    <input type="checkbox" id="setting-show-quick-links" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <p class="field__help">Requires the search bar. Links appear when you hover beneath it on the new tab.</p>
+                <div class="stack" id="quick-links-editor">
+                  <div class="link-rows" id="quick-links-list"></div>
+                  <button type="button" class="btn btn--ghost" id="quick-link-add">Add link</button>
+                  <p class="field__help">Up to 8 favorites.</p>
+                </div>
+              </section>
+
+              <section class="tab-panel" data-panel="background">
+                <label class="field field--row">
+                  <span class="field__label">Background photo</span>
+                  <span class="switch">
+                    <input type="checkbox" id="setting-show-background" checked />
+                    <span class="switch__track" aria-hidden="true"></span>
+                  </span>
+                </label>
+                <div id="background-options" class="stack">
+                  <label class="field">
+                    <span class="field__label">Source</span>
+                    <select class="field__input field__input--select" id="setting-bg-source">
+                      <option value="unsplash">Unsplash</option>
+                      <option value="custom">Custom uploads</option>
+                    </select>
+                  </label>
+                  <label class="field field--row">
+                    <span class="field__label">New photo on open</span>
+                    <span class="switch">
+                      <input type="checkbox" id="setting-bg-new-on-open" checked />
+                      <span class="switch__track" aria-hidden="true"></span>
+                    </span>
+                  </label>
+                  <p class="field__help">When on, each new tab picks a fresh background. When off, the photo stays until you click New photo.</p>
+                  <div id="unsplash-options" class="stack">
+                    <label class="field">
+                      <span class="field__label">Category</span>
+                      <select class="field__input field__input--select" id="setting-bg-category">
+                        <option value="nature">Nature</option>
+                        <option value="mountains">Mountains</option>
+                        <option value="ocean">Ocean</option>
+                        <option value="cities">Cities</option>
+                        <option value="architecture">Architecture</option>
+                        <option value="minimal">Minimal</option>
+                        <option value="abstract">Abstract</option>
+                        <option value="travel">Travel</option>
+                        <option value="forest">Forest</option>
+                        <option value="night">Night</option>
+                      </select>
+                    </label>
+                    <button type="button" class="btn btn--ghost" id="refresh-bg">New photo</button>
+                  </div>
+                  <div id="custom-options" class="stack" hidden>
+                    <div class="field">
+                      <span class="field__label">Upload images</span>
+                      <label class="dropzone" id="bg-dropzone">
+                        <input class="dropzone__input" id="setting-bg-upload" type="file" accept="image/*" multiple />
+                        <span class="dropzone__title">Drop images here</span>
+                        <span class="dropzone__hint">or click to browse · PNG, JPG, WebP</span>
+                      </label>
+                    </div>
+                    <div class="thumbs" id="custom-thumbs"></div>
+                    <p class="field__help">Uploads stay on this device. With “New photo on open” off, the same image stays until you refresh it.</p>
+                  </div>
+                </div>
+              </section>
+
+              <section class="tab-panel" data-panel="search">
+                <label class="field">
+                  <span class="field__label">Search engine</span>
+                  <select class="field__input field__input--select" id="setting-search-engine">
+                    <option value="google" data-icon="../icons/google.png">Google</option>
+                    <option value="duckduckgo" data-icon="../icons/duckduckgo.png">DuckDuckGo</option>
+                    <option value="bing" data-icon="../icons/bing.png">Bing</option>
+                    <option value="brave" data-icon="../icons/brave.png">Brave</option>
+                    <option value="ecosia" data-icon="../icons/ecosia.png">Ecosia</option>
+                    <option value="yahoo" data-icon="../icons/yahoo.png">Yahoo</option>
+                    <option value="startpage" data-icon="../icons/startpage.png">Startpage</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span class="field__label">AI provider</span>
+                  <select class="field__input field__input--select" id="setting-ai-provider">
+                    <option value="acosta" data-icon="../icons/acosta.png">Acosta</option>
+                    <option value="chatgpt" data-icon="../icons/gpt-white.png">ChatGPT</option>
+                    <option value="claude" data-icon="../icons/claude.png">Claude</option>
+                    <option value="perplexity" data-icon="../icons/perplexity.png">Perplexity</option>
+                    <option value="gemini" data-icon="../icons/gemini.png">Gemini</option>
+                  </select>
+                </label>
+                <p class="field__help">Press Tab in the search bar to switch between web search and your AI provider.</p>
+              </section>
+
+              <section class="tab-panel" data-panel="fonts">
+                <label class="field">
+                  <span class="field__label">Preset</span>
+                  <select class="field__input field__input--select" id="setting-font-preset">
+                    <option value="Bricolage Grotesque">Bricolage Grotesque</option>
+                    <option value="Instrument Serif">Instrument Serif</option>
+                    <option value="DM Sans">DM Sans</option>
+                    <option value="Fraunces">Fraunces</option>
+                    <option value="Space Grotesk">Space Grotesk</option>
+                    <option value="Libre Baskerville">Libre Baskerville</option>
+                    <option value="Syne">Syne</option>
+                    <option value="custom-google">Google Fonts name…</option>
+                    <option value="custom-file">Upload font file…</option>
+                  </select>
+                </label>
+                <label class="field" id="google-font-field" hidden>
+                  <span class="field__label">Google Fonts name</span>
+                  <input class="field__input" id="setting-font-google" type="text" placeholder="e.g. Playfair Display" />
+                  <span class="field__help">Exact family name from fonts.google.com</span>
+                </label>
+                <div class="field" id="file-font-field" hidden>
+                  <span class="field__label">Font file</span>
+                  <label class="dropzone dropzone--compact">
+                    <input class="dropzone__input" id="setting-font-file" type="file" accept=".woff2,.woff,.ttf,.otf" />
+                    <span class="dropzone__title">Drop a font file</span>
+                    <span class="dropzone__hint">or click to browse · WOFF2, WOFF, TTF, OTF</span>
+                  </label>
+                </div>
+              </section>
+
+              <section class="tab-panel" data-panel="about">
+                <div class="about">
+                  <img class="about__mark" src="../icons/favicon-48.png" alt="" width="48" height="48" />
+                  <h3 class="about__name">New Tab</h3>
+                  <p class="about__version">Version <span id="about-version"></span></p>
+                  <p class="about__lede">A calm new tab with weather, clock, backgrounds, search, and AI — all on this device.</p>
+                  <ul class="about__list">
+                    <li>Weather from Open-Meteo</li>
+                    <li>Photos from Unsplash</li>
+                    <li>Name and uploads stay local</li>
+                  </ul>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <footer class="settings-sidebar__foot" id="settings-foot">
+          <button type="button" class="btn btn--primary" id="settings-save">Save</button>
+        </footer>
+        </div>
+      </aside>
+    </div>
 
     <!-- Weather forecast -->
     <div class="overlay" id="forecast" hidden>
@@ -143,186 +390,6 @@
             <button type="button" class="btn btn--ghost" id="setup-location-skip">Not now</button>
           </div>
           <p class="field__help" id="setup-location-status" hidden></p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Settings -->
-    <div class="overlay" id="settings" hidden>
-      <div class="panel panel--settings" role="dialog" aria-labelledby="settings-title" aria-modal="true">
-        <div class="panel__head">
-          <h2 class="panel__title" id="settings-title">Settings</h2>
-          <button type="button" class="icon-btn" id="settings-close" aria-label="Close settings">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-            </svg>
-          </button>
-        </div>
-
-        <nav class="tabs" id="settings-tabs" aria-label="Settings sections">
-          <button type="button" class="tabs__btn is-active" data-tab="general">General</button>
-          <button type="button" class="tabs__btn" data-tab="background">Background</button>
-          <button type="button" class="tabs__btn" data-tab="search">Search & AI</button>
-          <button type="button" class="tabs__btn" data-tab="fonts">Fonts</button>
-          <button type="button" class="tabs__btn" data-tab="about">About</button>
-        </nav>
-
-        <div class="tab-panels">
-          <section class="tab-panel is-active" data-panel="general">
-            <label class="field">
-              <span class="field__label">Your name</span>
-              <input class="field__input" id="setting-name" type="text" maxlength="40" />
-            </label>
-            <label class="field field--row">
-              <span class="field__label">Show weather</span>
-              <span class="switch">
-                <input type="checkbox" id="setting-weather" checked />
-                <span class="switch__track" aria-hidden="true"></span>
-              </span>
-            </label>
-            <p class="field__help">Weather needs a one-time location permission. Click “Enable location” on the weather chip, or turn weather on and allow access when Chrome asks.</p>
-            <label class="field field--row">
-              <span class="field__label">24-hour clock</span>
-              <span class="switch">
-                <input type="checkbox" id="setting-24h" />
-                <span class="switch__track" aria-hidden="true"></span>
-              </span>
-            </label>
-            <label class="field field--row">
-              <span class="field__label">Quick links</span>
-              <span class="switch">
-                <input type="checkbox" id="setting-quick-links" checked />
-                <span class="switch__track" aria-hidden="true"></span>
-              </span>
-            </label>
-            <div class="stack" id="quick-links-editor">
-              <div class="link-rows" id="quick-links-list"></div>
-              <button type="button" class="btn btn--ghost" id="quick-link-add">Add link</button>
-              <p class="field__help">Up to 8 favorites. Hover beneath the search bar to reveal them.</p>
-            </div>
-          </section>
-
-          <section class="tab-panel" data-panel="background">
-            <label class="field">
-              <span class="field__label">Source</span>
-              <select class="field__input field__input--select" id="setting-bg-source">
-                <option value="unsplash">Unsplash</option>
-                <option value="custom">Custom uploads</option>
-              </select>
-            </label>
-            <label class="field field--row">
-              <span class="field__label">New photo on open</span>
-              <span class="switch">
-                <input type="checkbox" id="setting-bg-new-on-open" />
-                <span class="switch__track" aria-hidden="true"></span>
-              </span>
-            </label>
-            <p class="field__help">When on, each new tab picks a fresh background. When off, the photo stays until you click New photo.</p>
-            <div id="unsplash-options" class="stack">
-              <label class="field">
-                <span class="field__label">Category</span>
-                <select class="field__input field__input--select" id="setting-bg-category">
-                  <option value="nature">Nature</option>
-                  <option value="mountains">Mountains</option>
-                  <option value="ocean">Ocean</option>
-                  <option value="cities">Cities</option>
-                  <option value="architecture">Architecture</option>
-                  <option value="minimal">Minimal</option>
-                  <option value="abstract">Abstract</option>
-                  <option value="travel">Travel</option>
-                  <option value="forest">Forest</option>
-                  <option value="night">Night</option>
-                </select>
-              </label>
-              <button type="button" class="btn btn--ghost" id="refresh-bg">New photo</button>
-            </div>
-            <div id="custom-options" class="stack" hidden>
-              <div class="field">
-                <span class="field__label">Upload images</span>
-                <label class="dropzone" id="bg-dropzone">
-                  <input class="dropzone__input" id="setting-bg-upload" type="file" accept="image/*" multiple />
-                  <span class="dropzone__title">Drop images here</span>
-                  <span class="dropzone__hint">or click to browse · PNG, JPG, WebP</span>
-                </label>
-              </div>
-              <div class="thumbs" id="custom-thumbs"></div>
-              <p class="field__help">Uploads stay on this device. With “New photo on open” off, the same image stays until you refresh it.</p>
-            </div>
-          </section>
-
-          <section class="tab-panel" data-panel="search">
-            <label class="field">
-              <span class="field__label">Search engine</span>
-              <select class="field__input field__input--select" id="setting-search-engine">
-                <option value="google" data-icon="../icons/google.png">Google</option>
-                <option value="duckduckgo" data-icon="../icons/duckduckgo.png">DuckDuckGo</option>
-                <option value="bing" data-icon="../icons/bing.png">Bing</option>
-                <option value="brave" data-icon="../icons/brave.png">Brave</option>
-                <option value="ecosia" data-icon="../icons/ecosia.png">Ecosia</option>
-                <option value="yahoo" data-icon="../icons/yahoo.png">Yahoo</option>
-                <option value="startpage" data-icon="../icons/startpage.png">Startpage</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field__label">AI provider</span>
-              <select class="field__input field__input--select" id="setting-ai-provider">
-                <option value="acosta" data-icon="../icons/acosta.png">Acosta</option>
-                <option value="chatgpt" data-icon="../icons/gpt-white.png">ChatGPT</option>
-                <option value="claude" data-icon="../icons/claude.png">Claude</option>
-                <option value="perplexity" data-icon="../icons/perplexity.png">Perplexity</option>
-                <option value="gemini" data-icon="../icons/gemini.png">Gemini</option>
-              </select>
-            </label>
-            <p class="field__help">Press Tab in the search bar to switch between web search and your AI provider.</p>
-          </section>
-
-          <section class="tab-panel" data-panel="fonts">
-            <label class="field">
-              <span class="field__label">Preset</span>
-              <select class="field__input field__input--select" id="setting-font-preset">
-                <option value="Bricolage Grotesque">Bricolage Grotesque</option>
-                <option value="Instrument Serif">Instrument Serif</option>
-                <option value="DM Sans">DM Sans</option>
-                <option value="Fraunces">Fraunces</option>
-                <option value="Space Grotesk">Space Grotesk</option>
-                <option value="Libre Baskerville">Libre Baskerville</option>
-                <option value="Syne">Syne</option>
-                <option value="custom-google">Google Fonts name…</option>
-                <option value="custom-file">Upload font file…</option>
-              </select>
-            </label>
-            <label class="field" id="google-font-field" hidden>
-              <span class="field__label">Google Fonts name</span>
-              <input class="field__input" id="setting-font-google" type="text" placeholder="e.g. Playfair Display" />
-              <span class="field__help">Exact family name from fonts.google.com</span>
-            </label>
-            <div class="field" id="file-font-field" hidden>
-              <span class="field__label">Font file</span>
-              <label class="dropzone dropzone--compact">
-                <input class="dropzone__input" id="setting-font-file" type="file" accept=".woff2,.woff,.ttf,.otf" />
-                <span class="dropzone__title">Drop a font file</span>
-                <span class="dropzone__hint">or click to browse · WOFF2, WOFF, TTF, OTF</span>
-              </label>
-            </div>
-          </section>
-
-          <section class="tab-panel" data-panel="about">
-            <div class="about">
-              <img class="about__mark" src="../icons/favicon-48.png" alt="" width="48" height="48" />
-              <h3 class="about__name">New Tab</h3>
-              <p class="about__version">Version <span id="about-version"></span></p>
-              <p class="about__lede">A calm new tab with weather, clock, backgrounds, search, and AI — all on this device.</p>
-              <ul class="about__list">
-                <li>Weather from Open-Meteo</li>
-                <li>Photos from Unsplash</li>
-                <li>Name and uploads stay local</li>
-              </ul>
-            </div>
-          </section>
-        </div>
-
-        <div class="panel__foot" id="settings-foot">
-          <button type="button" class="btn btn--primary" id="settings-save">Save</button>
         </div>
       </div>
     </div>

@@ -28,6 +28,8 @@ const els = {
   bgImage: document.getElementById("bg-image"),
   photoCredit: document.getElementById("photo-credit"),
   photoCreditLink: document.getElementById("photo-credit-link"),
+  topbar: document.getElementById("topbar"),
+  searchZone: document.getElementById("search-zone"),
   searchForm: document.getElementById("search-form"),
   searchInput: document.getElementById("search-input"),
   searchLeading: document.getElementById("search-leading"),
@@ -42,6 +44,7 @@ const els = {
   setupLocationAllow: document.getElementById("setup-location-allow"),
   setupLocationSkip: document.getElementById("setup-location-skip"),
   setupLocationStatus: document.getElementById("setup-location-status"),
+  preview: document.getElementById("preview"),
   settings: document.getElementById("settings"),
   settingsOpen: document.getElementById("settings-open"),
   settingsClose: document.getElementById("settings-close"),
@@ -49,12 +52,20 @@ const els = {
   settingsFoot: document.getElementById("settings-foot"),
   aboutVersion: document.getElementById("about-version"),
   settingName: document.getElementById("setting-name"),
+  settingShowClock: document.getElementById("setting-show-clock"),
+  settingShowGreeting: document.getElementById("setting-show-greeting"),
+  settingShowSearch: document.getElementById("setting-show-search"),
+  settingShowSearchHint: document.getElementById("setting-show-search-hint"),
+  settingShowQuickLinks: document.getElementById("setting-show-quick-links"),
+  settingShowPhotoCredit: document.getElementById("setting-show-photo-credit"),
+  settingShowSettingsButton: document.getElementById("setting-show-settings-button"),
+  settingShowBackground: document.getElementById("setting-show-background"),
   settingWeather: document.getElementById("setting-weather"),
   setting24h: document.getElementById("setting-24h"),
-  settingQuickLinks: document.getElementById("setting-quick-links"),
   quickLinksEditor: document.getElementById("quick-links-editor"),
   quickLinksList: document.getElementById("quick-links-list"),
   quickLinkAdd: document.getElementById("quick-link-add"),
+  backgroundOptions: document.getElementById("background-options"),
   settingBgNewOnOpen: document.getElementById("setting-bg-new-on-open"),
   settingBgSource: document.getElementById("setting-bg-source"),
   settingBgCategory: document.getElementById("setting-bg-category"),
@@ -85,12 +96,17 @@ let draftQuickLinks = [];
 let draftFontDataUrl = "";
 let draftFontFormat = "";
 let clockTimer = 0;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let previewTimer = null;
+/** @type {{ url: string, credit?: string, link?: string } | null} */
+let previewPhoto = null;
 
 async function init() {
   settings = await loadSettings();
   searchMode = settings.searchMode || "web";
   els.aboutVersion.textContent = chrome.runtime.getManifest().version;
   applyFont(settings);
+  applyLayout();
   renderClock();
   renderGreeting();
   renderSearchChrome();
@@ -105,13 +121,22 @@ async function init() {
     els.setupStepLocation.hidden = true;
     els.setupName.focus();
   } else {
-    els.searchInput.focus();
+    focusPrimary();
   }
 
   clockTimer = window.setInterval(renderClock, 1000);
   bindEvents();
   enhanceSelects();
   maybeShowUpdate();
+
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === "OPEN_SETTINGS") openSettings();
+  });
+
+  if (new URLSearchParams(location.search).get("settings") === "1") {
+    openSettings();
+    history.replaceState(null, "", location.pathname);
+  }
 }
 
 function bindEvents() {
@@ -149,32 +174,44 @@ function bindEvents() {
     settings = await saveSettings({ setupComplete: true, ...patch });
     els.onboarding.hidden = true;
     renderGreeting();
+    applyLayout();
     updateWeatherVisibility();
-    els.searchInput.focus();
+    focusPrimary();
   }
 
   els.settingsOpen.addEventListener("click", openSettings);
   els.settingsClose.addEventListener("click", closeSettings);
-  els.settings.addEventListener("click", (e) => {
-    if (e.target === els.settings) closeSettings();
-  });
 
   els.settingsSave.addEventListener("click", saveSettingsFromForm);
+
+  els.settings.addEventListener("input", schedulePreview);
+  els.settings.addEventListener("change", schedulePreview);
 
   document.getElementById("settings-tabs").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-tab]");
     if (!btn) return;
     const tab = btn.dataset.tab;
-    document.querySelectorAll(".tabs__btn").forEach((b) => b.classList.toggle("is-active", b === btn));
+    document.querySelectorAll(".settings-nav__btn").forEach((b) => {
+      b.classList.toggle("is-active", b === btn);
+    });
     document.querySelectorAll(".tab-panel").forEach((p) => {
       p.classList.toggle("is-active", p.dataset.panel === tab);
     });
+    document.body.classList.toggle("settings-tab-links", tab === "links");
     els.settingsFoot.hidden = tab === "about";
+    btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
   });
 
-  els.settingBgSource.addEventListener("change", syncBgSourceUi);
+  els.settingBgSource.addEventListener("change", () => {
+    previewPhoto = null;
+    syncBgSourceUi();
+  });
   els.settingFontPreset.addEventListener("change", syncFontFields);
-  els.settingQuickLinks.addEventListener("change", syncQuickLinksEditor);
+  els.settingShowQuickLinks.addEventListener("change", syncQuickLinksEditor);
+  els.settingShowBackground.addEventListener("change", syncBackgroundOptions);
+  els.settingBgCategory.addEventListener("change", () => {
+    previewPhoto = null;
+  });
 
   els.settingBgUpload.addEventListener("change", async () => {
     await addImageFiles([...(els.settingBgUpload.files || [])]);
@@ -187,28 +224,25 @@ function bindEvents() {
 
   els.refreshBg.addEventListener("click", async () => {
     const photo =
-      settings.bgSource === "custom"
-        ? pickCustom(settings.customImages, {
+      els.settingBgSource.value === "custom"
+        ? pickCustom(draftCustomImages, {
             forceNew: true,
-            previousUrl: settings.lastCustom?.url,
+            previousUrl: previewPhoto?.url || settings.lastCustom?.url,
           })
         : pickUnsplash(els.settingBgCategory.value, {
             forceNew: true,
-            previousUrl: settings.lastUnsplash?.url,
+            previousUrl: previewPhoto?.url || settings.lastUnsplash?.url,
           });
     if (!photo) return;
-    const patch =
-      settings.bgSource === "custom"
-        ? { customImages: draftCustomImages, lastCustom: photo }
-        : { bgCategory: els.settingBgCategory.value, lastUnsplash: photo };
-    settings = await saveSettings(patch);
-    paintBackground(photo);
+    previewPhoto = photo;
+    paintBackground(photo, { allowRetry: false, state: readFormDraft() });
   });
 
   els.quickLinkAdd.addEventListener("click", () => {
     if (draftQuickLinks.length >= 8) return;
     draftQuickLinks.push({ title: "", url: "" });
     renderQuickLinkRows();
+    schedulePreview();
   });
 
   els.quickLinksZone.addEventListener("mouseleave", () => {
@@ -289,11 +323,69 @@ function bindEvents() {
   });
 }
 
+const SETTINGS_ANIM_MS = 520;
+
 function openSettings() {
+  populateSettingsForm();
+  previewPhoto = null;
+  const activeTab = document.querySelector(".settings-nav__btn.is-active")?.dataset.tab || "general";
+  document.body.classList.toggle("settings-tab-links", activeTab === "links");
+  els.settings.hidden = false;
+  els.settings.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.body.classList.add("settings-open");
+    });
+  });
+  applyPreviewFromForm();
+}
+
+function finishCloseSettings() {
+  els.settings.hidden = true;
+  els.settings.setAttribute("aria-hidden", "true");
+}
+
+function closeSettings({ revert = true } = {}) {
+  if (!document.body.classList.contains("settings-open")) {
+    finishCloseSettings();
+    return;
+  }
+
+  document.body.classList.remove("settings-open", "settings-tab-links");
+  previewPhoto = null;
+  closeAllMenus();
+  if (revert) revertPreview();
+
+  let finished = false;
+  const done = () => {
+    if (finished || document.body.classList.contains("settings-open")) return;
+    finished = true;
+    finishCloseSettings();
+  };
+
+  els.preview.addEventListener(
+    "transitionend",
+    (event) => {
+      if (event.target !== els.preview || event.propertyName !== "border-radius") return;
+      done();
+    },
+    { once: true },
+  );
+  window.setTimeout(done, SETTINGS_ANIM_MS + 40);
+}
+
+function populateSettingsForm() {
   els.settingName.value = settings.name || "";
+  els.settingShowClock.checked = settings.showClock;
+  els.settingShowGreeting.checked = settings.showGreeting;
+  els.settingShowSearch.checked = settings.showSearch;
+  els.settingShowSearchHint.checked = settings.showSearchHint;
+  els.settingShowQuickLinks.checked = settings.showQuickLinks;
+  els.settingShowPhotoCredit.checked = settings.showPhotoCredit;
+  els.settingShowSettingsButton.checked = settings.showSettingsButton;
+  els.settingShowBackground.checked = settings.showBackground;
   els.settingWeather.checked = settings.showWeather;
   els.setting24h.checked = settings.use24h;
-  els.settingQuickLinks.checked = settings.quickLinksEnabled;
   els.settingBgNewOnOpen.checked = settings.newPhotoOnOpen;
   els.settingBgSource.value = settings.bgSource;
   els.settingBgCategory.value = settings.bgCategory;
@@ -313,24 +405,124 @@ function openSettings() {
   syncBgSourceUi();
   syncFontFields();
   syncQuickLinksEditor();
+  syncBackgroundOptions();
   renderThumbs();
   renderQuickLinkRows();
-  const activeTab = document.querySelector(".tabs__btn.is-active")?.dataset.tab;
+  const activeTab = document.querySelector(".settings-nav__btn.is-active")?.dataset.tab;
   els.settingsFoot.hidden = activeTab === "about";
-  els.settings.hidden = false;
 }
 
-function closeSettings() {
-  els.settings.hidden = true;
-  closeAllMenus();
+function revertPreview() {
+  applyFont(settings);
+  applyLayout();
+  renderGreeting();
+  renderClock();
+  renderSearchChrome();
+  updateWeatherVisibility();
+  applyBackground(false);
+  focusPrimary();
+}
+
+function schedulePreview() {
+  if (els.settings.hidden) return;
+  if (previewTimer) clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    previewTimer = null;
+    applyPreviewFromForm();
+  }, 60);
+}
+
+/**
+ * @returns {import('./types.js').Settings}
+ */
+function readFormDraft() {
+  return {
+    ...settings,
+    name: els.settingName.value.trim() || settings.name,
+    showClock: els.settingShowClock.checked,
+    showGreeting: els.settingShowGreeting.checked,
+    showSearch: els.settingShowSearch.checked,
+    showSearchHint: els.settingShowSearchHint.checked,
+    showQuickLinks: els.settingShowQuickLinks.checked,
+    showPhotoCredit: els.settingShowPhotoCredit.checked,
+    showSettingsButton: els.settingShowSettingsButton.checked,
+    showBackground: els.settingShowBackground.checked,
+    showWeather: els.settingWeather.checked,
+    use24h: els.setting24h.checked,
+    quickLinks: normalizeQuickLinks(draftQuickLinks),
+    newPhotoOnOpen: els.settingBgNewOnOpen.checked,
+    bgSource: /** @type {'unsplash'|'custom'} */ (els.settingBgSource.value),
+    bgCategory: els.settingBgCategory.value,
+    customImages: draftCustomImages,
+    searchEngine: els.settingSearchEngine.value,
+    aiProvider: els.settingAiProvider.value,
+    fontPreset: els.settingFontPreset.value,
+    googleFontName: els.settingFontGoogle.value.trim(),
+    customFontDataUrl: draftFontDataUrl,
+    customFontFormat: draftFontFormat,
+  };
+}
+
+function applyPreviewFromForm() {
+  const draft = readFormDraft();
+  applyLayoutWithState(draft);
+  applyFont(draft);
+  renderGreetingWithState(draft);
+  renderClockWithState(draft);
+  renderSearchChromeWithState(draft);
+  previewBackground(draft);
+  updateWeatherVisibilityWithState(draft);
+}
+
+function previewBackground(draft) {
+  if (!draft.showBackground) {
+    showBackgroundFallback();
+    els.photoCredit.hidden = true;
+    return;
+  }
+
+  if (previewPhoto) {
+    paintBackground(previewPhoto, { allowRetry: false, state: draft });
+    return;
+  }
+
+  if (draft.bgSource === "custom") {
+    const photo = pickCustom(draft.customImages, {
+      previousUrl: settings.lastCustom?.url,
+    });
+    if (!photo) {
+      showBackgroundFallback();
+      els.photoCredit.hidden = true;
+      return;
+    }
+    paintBackground(photo, { allowRetry: false, state: draft });
+    return;
+  }
+
+  const cached = settings.lastUnsplash;
+  const photo =
+    cached && cached.category === draft.bgCategory
+      ? cached
+      : pickUnsplash(draft.bgCategory, {
+          forceNew: cached?.category !== draft.bgCategory,
+          previousUrl: cached?.url,
+        });
+  paintBackground(photo, { allowRetry: false, state: draft });
 }
 
 async function saveSettingsFromForm() {
   const patch = {
     name: els.settingName.value.trim() || settings.name,
+    showClock: els.settingShowClock.checked,
+    showGreeting: els.settingShowGreeting.checked,
+    showSearch: els.settingShowSearch.checked,
+    showSearchHint: els.settingShowSearchHint.checked,
+    showQuickLinks: els.settingShowQuickLinks.checked,
+    showPhotoCredit: els.settingShowPhotoCredit.checked,
+    showSettingsButton: els.settingShowSettingsButton.checked,
+    showBackground: els.settingShowBackground.checked,
     showWeather: els.settingWeather.checked,
     use24h: els.setting24h.checked,
-    quickLinksEnabled: els.settingQuickLinks.checked,
     quickLinks: normalizeQuickLinks(draftQuickLinks),
     newPhotoOnOpen: els.settingBgNewOnOpen.checked,
     bgSource: els.settingBgSource.value,
@@ -349,7 +541,9 @@ async function saveSettingsFromForm() {
   }
 
   settings = await saveSettings(patch);
+  previewPhoto = null;
   applyFont(settings);
+  applyLayout();
   renderGreeting();
   renderClock();
   renderSearchChrome();
@@ -360,7 +554,42 @@ async function saveSettingsFromForm() {
     loadWeather();
   }
   await applyBackground(true);
-  closeSettings();
+  focusPrimary();
+  closeSettings({ revert: false });
+}
+
+function applyLayout() {
+  applyLayoutWithState(settings);
+}
+
+/**
+ * @param {import('./types.js').Settings} state
+ */
+function applyLayoutWithState(state) {
+  els.clock.hidden = !state.showClock;
+  els.greeting.hidden = !state.showGreeting;
+  els.searchZone.hidden = !state.showSearch;
+  els.settingsOpen.hidden = !state.showSettingsButton;
+  els.topbar.hidden = !(state.showWeather || state.showSettingsButton);
+  document.body.classList.toggle(
+    "page-minimal",
+    !state.showClock &&
+      !state.showGreeting &&
+      !state.showSearch &&
+      !(state.showWeather || state.showSettingsButton)
+  );
+  renderQuickLinksWithState(state);
+}
+
+function focusPrimary() {
+  if (!settings.setupComplete || !els.onboarding.hidden) return;
+  if (settings.showSearch) {
+    els.searchInput.focus();
+  }
+}
+
+function syncBackgroundOptions() {
+  els.backgroundOptions.hidden = !els.settingShowBackground.checked;
 }
 
 function syncBgSourceUi() {
@@ -376,7 +605,7 @@ function syncFontFields() {
 }
 
 function syncQuickLinksEditor() {
-  els.quickLinksEditor.hidden = !els.settingQuickLinks.checked;
+  els.quickLinksEditor.hidden = !els.settingShowQuickLinks.checked;
 }
 
 function renderQuickLinkRows() {
@@ -386,17 +615,20 @@ function renderQuickLinkRows() {
     row.className = "link-row";
     row.innerHTML = `
       <input class="field__input link-row__title" type="text" placeholder="Label" maxlength="32" value="${escapeAttr(link.title)}" />
-      <input class="field__input link-row__url" type="url" placeholder="https://" inputmode="url" value="${escapeAttr(link.url)}" />
+      <input class="field__input link-row__url" type="text" placeholder="https://" autocomplete="off" spellcheck="false" value="${escapeAttr(link.url)}" />
       <button type="button" class="link-row__remove" aria-label="Remove link">×</button>`;
     row.querySelector(".link-row__title").addEventListener("input", (e) => {
       draftQuickLinks[index].title = /** @type {HTMLInputElement} */ (e.target).value;
+      schedulePreview();
     });
     row.querySelector(".link-row__url").addEventListener("input", (e) => {
       draftQuickLinks[index].url = /** @type {HTMLInputElement} */ (e.target).value;
+      schedulePreview();
     });
     row.querySelector(".link-row__remove").addEventListener("click", () => {
       draftQuickLinks.splice(index, 1);
       renderQuickLinkRows();
+      schedulePreview();
     });
     els.quickLinksList.appendChild(row);
   });
@@ -404,7 +636,14 @@ function renderQuickLinkRows() {
 }
 
 function renderQuickLinks() {
-  const links = settings.quickLinksEnabled ? settings.quickLinks || [] : [];
+  renderQuickLinksWithState(settings);
+}
+
+/**
+ * @param {import('./types.js').Settings} state
+ */
+function renderQuickLinksWithState(state) {
+  const links = state.showQuickLinks && state.showSearch ? state.quickLinks || [] : [];
   if (!links.length) {
     els.quickLinksZone.hidden = true;
     els.quickLinks.innerHTML = "";
@@ -489,6 +728,8 @@ function renderThumbs() {
     item.querySelector("button").addEventListener("click", () => {
       draftCustomImages.splice(index, 1);
       renderThumbs();
+      previewPhoto = null;
+      schedulePreview();
     });
     els.customThumbs.appendChild(item);
   });
@@ -502,33 +743,20 @@ function setSearchMode(mode) {
   });
 }
 
-function renderSearchChrome() {
-  els.searchLeading.innerHTML = leadingIconHtml(
-    searchMode,
-    settings.searchEngine,
-    settings.aiProvider
-  );
-  els.searchInput.placeholder = placeholderFor(
-    searchMode,
-    settings.searchEngine,
-    settings.aiProvider
-  );
-  const aiName =
-    settings.aiProvider === "acosta"
-      ? "Acosta"
-      : settings.aiProvider.charAt(0).toUpperCase() + settings.aiProvider.slice(1);
-  els.searchHint.textContent =
-    searchMode === "ai"
-      ? `Press Enter to ask ${aiName} · Tab for web search`
-      : "Press Enter to search · Tab to ask AI";
+function renderClock() {
+  renderClockWithState(settings);
 }
 
-function renderClock() {
+/**
+ * @param {import('./types.js').Settings} state
+ */
+function renderClockWithState(state) {
+  if (!state.showClock) return;
   const now = new Date();
   const opts = {
     hour: "numeric",
     minute: "2-digit",
-    hour12: !settings?.use24h,
+    hour12: !state.use24h,
   };
   const text = new Intl.DateTimeFormat(undefined, opts).format(now);
   els.clock.textContent = text.replace(/\s?(AM|PM)/i, (m) => m.toLowerCase());
@@ -536,15 +764,59 @@ function renderClock() {
 }
 
 function renderGreeting() {
+  renderGreetingWithState(settings);
+}
+
+/**
+ * @param {import('./types.js').Settings} state
+ */
+function renderGreetingWithState(state) {
+  if (!state.showGreeting) return;
   const hour = new Date().getHours();
   let part = "evening";
   if (hour < 12) part = "morning";
   else if (hour < 18) part = "afternoon";
-  const name = settings.name?.trim();
+  const name = state.name?.trim();
   els.greeting.textContent = name ? `Good ${part}, ${name}` : `Good ${part}`;
 }
 
+function renderSearchChrome() {
+  renderSearchChromeWithState(settings);
+}
+
+/**
+ * @param {import('./types.js').Settings} state
+ */
+function renderSearchChromeWithState(state) {
+  els.searchLeading.innerHTML = leadingIconHtml(
+    searchMode,
+    state.searchEngine,
+    state.aiProvider
+  );
+  els.searchInput.placeholder = placeholderFor(
+    searchMode,
+    state.searchEngine,
+    state.aiProvider
+  );
+  els.searchHint.hidden = !state.showSearch || !state.showSearchHint;
+  if (!state.showSearch || !state.showSearchHint) return;
+  const aiName =
+    state.aiProvider === "acosta"
+      ? "Acosta"
+      : state.aiProvider.charAt(0).toUpperCase() + state.aiProvider.slice(1);
+  els.searchHint.textContent =
+    searchMode === "ai"
+      ? `Press Enter to ask ${aiName} · Tab for web search`
+      : "Press Enter to search · Tab to ask AI";
+}
+
 async function applyBackground(fromSettings) {
+  if (!settings.showBackground) {
+    showBackgroundFallback();
+    els.photoCredit.hidden = true;
+    return;
+  }
+
   const forceNew = settings.newPhotoOnOpen && !fromSettings;
 
   if (settings.bgSource === "custom") {
@@ -589,7 +861,7 @@ async function applyBackground(fromSettings) {
   paintBackground(photo);
 }
 
-function paintBackground(photo, { allowRetry = true } = {}) {
+function paintBackground(photo, { allowRetry = true, state = settings } = {}) {
   if (!photo?.url) {
     showBackgroundFallback();
     return;
@@ -599,7 +871,7 @@ function paintBackground(photo, { allowRetry = true } = {}) {
   img.onload = () => {
     els.bgImage.classList.remove("is-fallback");
     els.bgImage.style.backgroundImage = `url("${photo.url}")`;
-    if (photo.credit) {
+    if (photo.credit && state.showPhotoCredit) {
       els.photoCredit.hidden = false;
       els.photoCreditLink.textContent = photo.credit;
       els.photoCreditLink.href = photo.link || "#";
@@ -609,7 +881,7 @@ function paintBackground(photo, { allowRetry = true } = {}) {
   };
   img.onerror = () => {
     if (allowRetry && settings.lastUnsplash?.url && settings.lastUnsplash.url !== photo.url) {
-      paintBackground(settings.lastUnsplash, { allowRetry: false });
+      paintBackground(settings.lastUnsplash, { allowRetry: false, state });
       return;
     }
     showBackgroundFallback();
@@ -634,6 +906,7 @@ async function addImageFiles(files) {
     draftCustomImages.push(dataUrl);
   }
   renderThumbs();
+  schedulePreview();
 }
 
 /**
@@ -664,7 +937,14 @@ function bindDropzone(zone, onFiles) {
 }
 
 function updateWeatherVisibility() {
-  if (!settings.showWeather) {
+  updateWeatherVisibilityWithState(settings);
+}
+
+/**
+ * @param {import('./types.js').Settings} state
+ */
+function updateWeatherVisibilityWithState(state) {
+  if (!state.showWeather) {
     els.weather.hidden = true;
     els.weather.classList.remove("weather--needs-location");
   }

@@ -5,8 +5,8 @@
 .doc .eyebrow {
   margin: 0 0 0.45rem;
   font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
   color: var(--accent);
 }
 

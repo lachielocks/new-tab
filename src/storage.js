@@ -3,7 +3,15 @@
 export const DEFAULT_SETTINGS = {
   name: "",
   setupComplete: false,
+  showClock: true,
+  showGreeting: true,
+  showSearch: true,
+  showSearchHint: true,
+  showQuickLinks: true,
   showWeather: true,
+  showPhotoCredit: true,
+  showSettingsButton: true,
+  showBackground: true,
   use24h: false,
   bgSource: "unsplash",
   bgCategory: "nature",
@@ -17,19 +25,29 @@ export const DEFAULT_SETTINGS = {
   searchMode: "web",
   lastUnsplash: null,
   lastCustom: null,
-  newPhotoOnOpen: false,
-  quickLinksEnabled: true,
+  newPhotoOnOpen: true,
   quickLinks: /** @type {{title: string, url: string}[]} */ ([]),
 };
 
 const KEY = "newTabSettings";
 
 /**
+ * @param {Record<string, unknown>} stored
+ */
+function migrateStored(stored) {
+  if (stored.showQuickLinks === undefined && stored.quickLinksEnabled !== undefined) {
+    stored.showQuickLinks = stored.quickLinksEnabled;
+  }
+  return stored;
+}
+
+/**
  * @returns {Promise<Settings>}
  */
 export async function loadSettings() {
   const result = await chrome.storage.local.get(KEY);
-  return { ...DEFAULT_SETTINGS, ...(result[KEY] || {}) };
+  const stored = migrateStored(result[KEY] || {});
+  return { ...DEFAULT_SETTINGS, ...stored };
 }
 
 /**
