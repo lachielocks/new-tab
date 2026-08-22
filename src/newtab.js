@@ -32,6 +32,7 @@ const els = {
   searchInput: document.getElementById("search-input"),
   searchLeading: document.getElementById("search-leading"),
   searchHint: document.getElementById("search-hint"),
+  quickLinks: document.getElementById("quick-links"),
   onboarding: document.getElementById("onboarding"),
   setupForm: document.getElementById("setup-form"),
   setupName: document.getElementById("setup-name"),
@@ -49,6 +50,11 @@ const els = {
   settingName: document.getElementById("setting-name"),
   settingWeather: document.getElementById("setting-weather"),
   setting24h: document.getElementById("setting-24h"),
+  settingQuickLinks: document.getElementById("setting-quick-links"),
+  quickLinksEditor: document.getElementById("quick-links-editor"),
+  quickLinksList: document.getElementById("quick-links-list"),
+  quickLinkAdd: document.getElementById("quick-link-add"),
+  settingBgNewOnOpen: document.getElementById("setting-bg-new-on-open"),
   settingBgSource: document.getElementById("setting-bg-source"),
   settingBgCategory: document.getElementById("setting-bg-category"),
   settingBgUpload: document.getElementById("setting-bg-upload"),
@@ -73,6 +79,8 @@ const els = {
 let searchMode = "web";
 /** @type {string[]} */
 let draftCustomImages = [];
+/** @type {{title: string, url: string}[]} */
+let draftQuickLinks = [];
 let draftFontDataUrl = "";
 let draftFontFormat = "";
 let clockTimer = 0;
@@ -85,6 +93,7 @@ async function init() {
   renderClock();
   renderGreeting();
   renderSearchChrome();
+  renderQuickLinks();
   await applyBackground(false);
   updateWeatherVisibility();
   if (settings.setupComplete && settings.showWeather) loadWeather();
@@ -164,6 +173,7 @@ function bindEvents() {
 
   els.settingBgSource.addEventListener("change", syncBgSourceUi);
   els.settingFontPreset.addEventListener("change", syncFontFields);
+  els.settingQuickLinks.addEventListener("change", syncQuickLinksEditor);
 
   els.settingBgUpload.addEventListener("change", async () => {
     await addImageFiles([...(els.settingBgUpload.files || [])]);
@@ -175,15 +185,29 @@ function bindEvents() {
   });
 
   els.refreshBg.addEventListener("click", async () => {
-    const photo = pickUnsplash(els.settingBgCategory.value, {
-      forceNew: true,
-      previousUrl: settings.lastUnsplash?.url,
-    });
-    settings = await saveSettings({
-      bgCategory: els.settingBgCategory.value,
-      lastUnsplash: photo,
-    });
+    const photo =
+      settings.bgSource === "custom"
+        ? pickCustom(settings.customImages, {
+            forceNew: true,
+            previousUrl: settings.lastCustom?.url,
+          })
+        : pickUnsplash(els.settingBgCategory.value, {
+            forceNew: true,
+            previousUrl: settings.lastUnsplash?.url,
+          });
+    if (!photo) return;
+    const patch =
+      settings.bgSource === "custom"
+        ? { customImages: draftCustomImages, lastCustom: photo }
+        : { bgCategory: els.settingBgCategory.value, lastUnsplash: photo };
+    settings = await saveSettings(patch);
     paintBackground(photo);
+  });
+
+  els.quickLinkAdd.addEventListener("click", () => {
+    if (draftQuickLinks.length >= 8) return;
+    draftQuickLinks.push({ title: "", url: "" });
+    renderQuickLinkRows();
   });
 
   els.settingFontFile.addEventListener("change", async () => {
@@ -261,6 +285,8 @@ function openSettings() {
   els.settingName.value = settings.name || "";
   els.settingWeather.checked = settings.showWeather;
   els.setting24h.checked = settings.use24h;
+  els.settingQuickLinks.checked = settings.quickLinksEnabled;
+  els.settingBgNewOnOpen.checked = settings.newPhotoOnOpen;
   els.settingBgSource.value = settings.bgSource;
   els.settingBgCategory.value = settings.bgCategory;
   els.settingSearchEngine.value = settings.searchEngine;
@@ -268,6 +294,7 @@ function openSettings() {
   els.settingFontPreset.value = settings.fontPreset;
   els.settingFontGoogle.value = settings.googleFontName || "";
   draftCustomImages = [...(settings.customImages || [])];
+  draftQuickLinks = (settings.quickLinks || []).map((link) => ({ ...link }));
   draftFontDataUrl = settings.customFontDataUrl || "";
   draftFontFormat = settings.customFontFormat || "";
   syncSelectUi(els.settingBgSource);
@@ -277,7 +304,9 @@ function openSettings() {
   syncSelectUi(els.settingFontPreset);
   syncBgSourceUi();
   syncFontFields();
+  syncQuickLinksEditor();
   renderThumbs();
+  renderQuickLinkRows();
   const activeTab = document.querySelector(".tabs__btn.is-active")?.dataset.tab;
   els.settingsFoot.hidden = activeTab === "about";
   els.settings.hidden = false;
@@ -293,6 +322,9 @@ async function saveSettingsFromForm() {
     name: els.settingName.value.trim() || settings.name,
     showWeather: els.settingWeather.checked,
     use24h: els.setting24h.checked,
+    quickLinksEnabled: els.settingQuickLinks.checked,
+    quickLinks: normalizeQuickLinks(draftQuickLinks),
+    newPhotoOnOpen: els.settingBgNewOnOpen.checked,
     bgSource: els.settingBgSource.value,
     bgCategory: els.settingBgCategory.value,
     customImages: draftCustomImages,
@@ -313,6 +345,7 @@ async function saveSettingsFromForm() {
   renderGreeting();
   renderClock();
   renderSearchChrome();
+  renderQuickLinks();
   updateWeatherVisibility();
   if (settings.showWeather) {
     await requestLocationAccess();
@@ -332,6 +365,118 @@ function syncFontFields() {
   const value = els.settingFontPreset.value;
   els.googleFontField.hidden = value !== "custom-google";
   els.fileFontField.hidden = value !== "custom-file";
+}
+
+function syncQuickLinksEditor() {
+  els.quickLinksEditor.hidden = !els.settingQuickLinks.checked;
+}
+
+function renderQuickLinkRows() {
+  els.quickLinksList.innerHTML = "";
+  draftQuickLinks.forEach((link, index) => {
+    const row = document.createElement("div");
+    row.className = "link-row";
+    row.innerHTML = `
+      <input class="field__input link-row__title" type="text" placeholder="Label" maxlength="32" value="${escapeAttr(link.title)}" />
+      <input class="field__input link-row__url" type="url" placeholder="https://" inputmode="url" value="${escapeAttr(link.url)}" />
+      <button type="button" class="link-row__remove" aria-label="Remove link">×</button>`;
+    row.querySelector(".link-row__title").addEventListener("input", (e) => {
+      draftQuickLinks[index].title = /** @type {HTMLInputElement} */ (e.target).value;
+    });
+    row.querySelector(".link-row__url").addEventListener("input", (e) => {
+      draftQuickLinks[index].url = /** @type {HTMLInputElement} */ (e.target).value;
+    });
+    row.querySelector(".link-row__remove").addEventListener("click", () => {
+      draftQuickLinks.splice(index, 1);
+      renderQuickLinkRows();
+    });
+    els.quickLinksList.appendChild(row);
+  });
+  els.quickLinkAdd.disabled = draftQuickLinks.length >= 8;
+}
+
+function renderQuickLinks() {
+  const links = settings.quickLinksEnabled ? settings.quickLinks || [] : [];
+  if (!links.length) {
+    els.quickLinks.hidden = true;
+    els.quickLinks.innerHTML = "";
+    return;
+  }
+
+  els.quickLinks.hidden = false;
+  els.quickLinks.innerHTML = links
+    .map((link) => {
+      const url = normalizeUrl(link.url);
+      if (!url) return "";
+      const domain = linkDomain(url);
+      const label = link.title?.trim() || domain || "Link";
+      const favicon = domain
+        ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`
+        : "";
+      const iconMarkup = favicon
+        ? `<img class="quick-links__icon" src="${favicon}" alt="" width="16" height="16" loading="lazy" />`
+        : "";
+      return `<a class="quick-links__item" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${iconMarkup}<span class="quick-links__label">${escapeHtml(label)}</span></a>`;
+    })
+    .join("");
+}
+
+/**
+ * @param {{title: string, url: string}[]} links
+ */
+function normalizeQuickLinks(links) {
+  return links
+    .map((link) => ({
+      title: link.title.trim(),
+      url: normalizeUrl(link.url),
+    }))
+    .filter((link) => link.url)
+    .slice(0, 8);
+}
+
+/**
+ * @param {string} value
+ */
+function normalizeUrl(value) {
+  const raw = value.trim();
+  if (!raw) return "";
+  try {
+    const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const url = new URL(withProtocol);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * @param {string} url
+ */
+function linkDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * @param {string} value
+ */
+function escapeHtml(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+/**
+ * @param {string} value
+ */
+function escapeAttr(value) {
+  return escapeHtml(value).replaceAll("'", "&#39;");
 }
 
 function renderThumbs() {
@@ -399,12 +544,26 @@ function renderGreeting() {
 }
 
 async function applyBackground(fromSettings) {
+  const forceNew = settings.newPhotoOnOpen && !fromSettings;
+
   if (settings.bgSource === "custom") {
-    const photo = pickCustom(settings.customImages);
-    if (photo) {
-      paintBackground(photo);
+    const cached = settings.lastCustom;
+    const keepCached = cached && !forceNew && !fromSettings;
+    const photo = keepCached
+      ? cached
+      : pickCustom(settings.customImages, {
+          forceNew: forceNew || fromSettings,
+          previousUrl: cached?.url,
+        });
+    if (!photo) {
+      showBackgroundFallback();
       return;
     }
+    if (!keepCached || fromSettings) {
+      settings = await saveSettings({ lastCustom: photo });
+    }
+    paintBackground(photo);
+    return;
   }
 
   const cached = settings.lastUnsplash;
@@ -412,17 +571,18 @@ async function applyBackground(fromSettings) {
     cached &&
     cached.dayKey === dayKey() &&
     cached.category === settings.bgCategory &&
-    !fromSettings;
+    !fromSettings &&
+    !forceNew;
 
   const photo =
     sameDay && cached
       ? cached
       : pickUnsplash(settings.bgCategory, {
-          forceNew: fromSettings,
+          forceNew: forceNew || fromSettings,
           previousUrl: cached?.url,
         });
 
-  if (!sameDay || fromSettings) {
+  if (!sameDay || fromSettings || forceNew) {
     settings = await saveSettings({ lastUnsplash: photo });
   }
   paintBackground(photo);

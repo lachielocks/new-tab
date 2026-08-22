@@ -68,6 +68,8 @@
         </div>
         <p class="search__hint" id="search-hint">Press Enter to search · Tab to ask AI</p>
       </form>
+
+      <nav class="quick-links" id="quick-links" aria-label="Quick links" hidden></nav>
     </main>
 
     <footer class="credit" id="photo-credit" hidden>
@@ -182,6 +184,18 @@
                 <span class="switch__track" aria-hidden="true"></span>
               </span>
             </label>
+            <label class="field field--row">
+              <span class="field__label">Quick links</span>
+              <span class="switch">
+                <input type="checkbox" id="setting-quick-links" checked />
+                <span class="switch__track" aria-hidden="true"></span>
+              </span>
+            </label>
+            <div class="stack" id="quick-links-editor">
+              <div class="link-rows" id="quick-links-list"></div>
+              <button type="button" class="btn btn--ghost" id="quick-link-add">Add link</button>
+              <p class="field__help">Up to 8 favorites. Hover the page to reveal them beneath search.</p>
+            </div>
           </section>
 
           <section class="tab-panel" data-panel="background">
@@ -192,6 +206,14 @@
                 <option value="custom">Custom uploads</option>
               </select>
             </label>
+            <label class="field field--row">
+              <span class="field__label">New photo on open</span>
+              <span class="switch">
+                <input type="checkbox" id="setting-bg-new-on-open" />
+                <span class="switch__track" aria-hidden="true"></span>
+              </span>
+            </label>
+            <p class="field__help">When on, each new tab picks a fresh background. When off, the photo stays until you click New photo.</p>
             <div id="unsplash-options" class="stack">
               <label class="field">
                 <span class="field__label">Category</span>
@@ -220,7 +242,7 @@
                 </label>
               </div>
               <div class="thumbs" id="custom-thumbs"></div>
-              <p class="field__help">Uploads stay on this device. One is chosen at random each time.</p>
+              <p class="field__help">Uploads stay on this device. With “New photo on open” off, the same image stays until you refresh it.</p>
             </div>
           </section>
 

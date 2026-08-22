@@ -106,10 +106,30 @@ export function pickUnsplash(category, opts = {}) {
 
 /**
  * @param {string[]} images
+ * @param {{forceNew?: boolean, previousUrl?: string|null}} [opts]
  */
-export function pickCustom(images) {
+export function pickCustom(images, opts = {}) {
   if (!images?.length) return null;
-  const url = images[Math.floor(Math.random() * images.length)];
+
+  if (!opts.forceNew && opts.previousUrl && images.includes(opts.previousUrl)) {
+    return {
+      url: opts.previousUrl,
+      credit: "",
+      link: "",
+      dayKey: dayKey(),
+      category: "custom",
+    };
+  }
+
+  let url = images[Math.floor(Math.random() * images.length)];
+  if (opts.forceNew && images.length > 1 && opts.previousUrl) {
+    let guard = 0;
+    do {
+      url = images[Math.floor(Math.random() * images.length)];
+      guard += 1;
+    } while (url === opts.previousUrl && guard < 12);
+  }
+
   return { url, credit: "", link: "", dayKey: dayKey(), category: "custom" };
 }
 

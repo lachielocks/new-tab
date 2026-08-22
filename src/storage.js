@@ -16,6 +16,10 @@ export const DEFAULT_SETTINGS = {
   customFontFormat: "",
   searchMode: "web",
   lastUnsplash: null,
+  lastCustom: null,
+  newPhotoOnOpen: false,
+  quickLinksEnabled: true,
+  quickLinks: /** @type {{title: string, url: string}[]} */ ([]),
 };
 
 const KEY = "newTabSettings";

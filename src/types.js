@@ -15,6 +15,10 @@
  * @property {string} customFontFormat
  * @property {'web'|'ai'} searchMode
  * @property {{url: string, credit: string, link: string, dayKey: string, category: string}|null} lastUnsplash
+ * @property {{url: string, credit: string, link: string, dayKey: string, category: string}|null} lastCustom
+ * @property {boolean} newPhotoOnOpen
+ * @property {boolean} quickLinksEnabled
+ * @property {{title: string, url: string}[]} quickLinks
  */
 
 export {};
