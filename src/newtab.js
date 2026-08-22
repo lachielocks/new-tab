@@ -1,6 +1,7 @@
 import { loadSettings, saveSettings } from "./storage.js";
 import { fetchWeather, fetchForecast, requestLocationAccess } from "./weather.js";
-import { pickUnsplash, pickCustom } from "./backgrounds.js";
+import { pickUnsplash, pickCustom, RECENT_UNSPLASH_LIMIT } from "./backgrounds.js";
+import { resolveUnsplashPhoto } from "./unsplash.js";
 import { buildDestination, leadingIconHtml, placeholderFor } from "./search.js";
 import { applyFont, readFontFile } from "./fonts.js";
 import { checkForUpdate } from "./updates.js";
@@ -67,6 +68,7 @@ const els = {
   quickLinkAdd: document.getElementById("quick-link-add"),
   backgroundOptions: document.getElementById("background-options"),
   settingBgNewOnOpen: document.getElementById("setting-bg-new-on-open"),
+  settingUnsplashKey: document.getElementById("setting-unsplash-key"),
   settingBgSource: document.getElementById("setting-bg-source"),
   settingBgCategory: document.getElementById("setting-bg-category"),
   settingBgUpload: document.getElementById("setting-bg-upload"),
@@ -223,16 +225,18 @@ function bindEvents() {
   });
 
   els.refreshBg.addEventListener("click", async () => {
+    const draft = readFormDraft();
     const photo =
       els.settingBgSource.value === "custom"
         ? pickCustom(draftCustomImages, {
             forceNew: true,
             previousUrl: previewPhoto?.url || settings.lastCustom?.url,
           })
-        : pickUnsplash(els.settingBgCategory.value, {
-            forceNew: true,
-            previousUrl: previewPhoto?.url || settings.lastUnsplash?.url,
-          });
+        : await resolveUnsplashPhoto(
+            els.settingBgCategory.value,
+            unsplashPickOpts(true, previewPhoto?.url || settings.lastUnsplash?.url),
+            draft,
+          );
     if (!photo) return;
     previewPhoto = photo;
     paintBackground(photo, { allowRetry: false, state: readFormDraft() });
@@ -325,6 +329,27 @@ function bindEvents() {
 
 const SETTINGS_ANIM_MS = 520;
 
+/**
+ * @param {boolean} forceNew
+ * @param {string|null|undefined} previousUrl
+ */
+function unsplashPickOpts(forceNew, previousUrl) {
+  return {
+    forceNew,
+    previousUrl,
+    excludeUrls: settings.recentUnsplashUrls || [],
+  };
+}
+
+/**
+ * @param {{url: string, credit: string, link: string, dayKey: string, category: string}} photo
+ */
+function unsplashRememberPatch(photo) {
+  const recent = [photo.url, ...(settings.recentUnsplashUrls || [])];
+  const recentUnsplashUrls = [...new Set(recent)].slice(0, RECENT_UNSPLASH_LIMIT);
+  return { lastUnsplash: photo, recentUnsplashUrls };
+}
+
 function openSettings() {
   populateSettingsForm();
   previewPhoto = null;
@@ -387,6 +412,7 @@ function populateSettingsForm() {
   els.settingWeather.checked = settings.showWeather;
   els.setting24h.checked = settings.use24h;
   els.settingBgNewOnOpen.checked = settings.newPhotoOnOpen;
+  els.settingUnsplashKey.value = settings.unsplashAccessKey || "";
   els.settingBgSource.value = settings.bgSource;
   els.settingBgCategory.value = settings.bgCategory;
   els.settingSearchEngine.value = settings.searchEngine;
@@ -451,6 +477,7 @@ function readFormDraft() {
     use24h: els.setting24h.checked,
     quickLinks: normalizeQuickLinks(draftQuickLinks),
     newPhotoOnOpen: els.settingBgNewOnOpen.checked,
+    unsplashAccessKey: els.settingUnsplashKey.value.trim(),
     bgSource: /** @type {'unsplash'|'custom'} */ (els.settingBgSource.value),
     bgCategory: els.settingBgCategory.value,
     customImages: draftCustomImages,
@@ -470,11 +497,11 @@ function applyPreviewFromForm() {
   renderGreetingWithState(draft);
   renderClockWithState(draft);
   renderSearchChromeWithState(draft);
-  previewBackground(draft);
+  void previewBackground(draft);
   updateWeatherVisibilityWithState(draft);
 }
 
-function previewBackground(draft) {
+async function previewBackground(draft) {
   if (!draft.showBackground) {
     showBackgroundFallback();
     els.photoCredit.hidden = true;
@@ -503,10 +530,11 @@ function previewBackground(draft) {
   const photo =
     cached && cached.category === draft.bgCategory
       ? cached
-      : pickUnsplash(draft.bgCategory, {
-          forceNew: cached?.category !== draft.bgCategory,
-          previousUrl: cached?.url,
-        });
+      : await resolveUnsplashPhoto(
+          draft.bgCategory,
+          unsplashPickOpts(cached?.category !== draft.bgCategory, cached?.url),
+          draft,
+        );
   paintBackground(photo, { allowRetry: false, state: draft });
 }
 
@@ -525,6 +553,7 @@ async function saveSettingsFromForm() {
     use24h: els.setting24h.checked,
     quickLinks: normalizeQuickLinks(draftQuickLinks),
     newPhotoOnOpen: els.settingBgNewOnOpen.checked,
+    unsplashAccessKey: els.settingUnsplashKey.value.trim(),
     bgSource: els.settingBgSource.value,
     bgCategory: els.settingBgCategory.value,
     customImages: draftCustomImages,
@@ -538,6 +567,10 @@ async function saveSettingsFromForm() {
   if (els.settingFontPreset.value === "custom-file" && draftFontDataUrl) {
     patch.customFontDataUrl = draftFontDataUrl;
     patch.customFontFormat = draftFontFormat;
+  }
+
+  if (patch.unsplashAccessKey !== settings.unsplashAccessKey) {
+    await chrome.storage.local.remove("unsplashPools");
   }
 
   settings = await saveSettings(patch);
@@ -850,22 +883,28 @@ async function applyBackground(fromSettings) {
   const photo =
     sameDay && cached
       ? cached
-      : pickUnsplash(settings.bgCategory, {
-          forceNew: forceNew || fromSettings,
-          previousUrl: cached?.url,
-        });
+      : await resolveUnsplashPhoto(
+          settings.bgCategory,
+          unsplashPickOpts(forceNew || fromSettings, cached?.url),
+          settings,
+        );
 
   if (!sameDay || fromSettings || forceNew) {
-    settings = await saveSettings({ lastUnsplash: photo });
+    settings = await saveSettings(unsplashRememberPatch(photo));
   }
   paintBackground(photo);
 }
 
-function paintBackground(photo, { allowRetry = true, state = settings } = {}) {
+function paintBackground(photo, { allowRetry = true, state = settings, tried = new Set() } = {}) {
   if (!photo?.url) {
     showBackgroundFallback();
     return;
   }
+  if (tried.has(photo.url)) {
+    showBackgroundFallback();
+    return;
+  }
+  tried.add(photo.url);
 
   const img = new Image();
   img.onload = () => {
@@ -880,8 +919,27 @@ function paintBackground(photo, { allowRetry = true, state = settings } = {}) {
     }
   };
   img.onerror = () => {
-    if (allowRetry && settings.lastUnsplash?.url && settings.lastUnsplash.url !== photo.url) {
-      paintBackground(settings.lastUnsplash, { allowRetry: false, state });
+    if (
+      allowRetry &&
+      state.bgSource === "unsplash" &&
+      tried.size < 8
+    ) {
+      const next = pickUnsplash(state.bgCategory, {
+        forceNew: true,
+        previousUrl: photo.url,
+        excludeUrls: [...tried, ...(state.recentUnsplashUrls || [])],
+      });
+      if (next?.url && !tried.has(next.url)) {
+        paintBackground(next, { allowRetry: true, state, tried });
+        return;
+      }
+    }
+    if (
+      allowRetry &&
+      settings.lastUnsplash?.url &&
+      !tried.has(settings.lastUnsplash.url)
+    ) {
+      paintBackground(settings.lastUnsplash, { allowRetry: false, state, tried });
       return;
     }
     showBackgroundFallback();

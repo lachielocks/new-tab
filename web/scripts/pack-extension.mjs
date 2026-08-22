@@ -65,6 +65,14 @@ bundle["src/update-config.json"] = new TextEncoder().encode(
   `${JSON.stringify(updateConfig, null, 2)}\n`
 );
 
+const unsplashKey = process.env.UNSPLASH_ACCESS_KEY?.trim();
+if (unsplashKey) {
+  const configPath = "src/unsplash-config.js";
+  bundle[configPath] = new TextEncoder().encode(
+    `/** Injected at pack time from UNSPLASH_ACCESS_KEY. */\nexport const UNSPLASH_ACCESS_KEY = ${JSON.stringify(unsplashKey)};\n`,
+  );
+}
+
 const manifest = JSON.parse(readFileSync(join(extRoot, "manifest.json"), "utf8"));
 manifest.host_permissions = [...new Set([...(manifest.host_permissions || []), origin])];
 const csp = manifest.content_security_policy?.extension_pages || "";

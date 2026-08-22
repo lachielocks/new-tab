@@ -24,6 +24,8 @@
  * @property {'web'|'ai'} searchMode
  * @property {{url: string, credit: string, link: string, dayKey: string, category: string}|null} lastUnsplash
  * @property {{url: string, credit: string, link: string, dayKey: string, category: string}|null} lastCustom
+ * @property {string[]} recentUnsplashUrls
+ * @property {string} unsplashAccessKey
  * @property {boolean} newPhotoOnOpen
  * @property {{title: string, url: string}[]} quickLinks
  */

@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS = {
   searchMode: "web",
   lastUnsplash: null,
   lastCustom: null,
+  recentUnsplashUrls: /** @type {string[]} */ ([]),
+  unsplashAccessKey: "",
   newPhotoOnOpen: true,
   quickLinks: /** @type {{title: string, url: string}[]} */ ([]),
 };
