@@ -1,7 +1,6 @@
 import { loadSettings, saveSettings } from "./storage.js";
 import { fetchWeather, fetchForecast, requestLocationAccess } from "./weather.js";
 import { pickUnsplash, pickCustom, RECENT_UNSPLASH_LIMIT } from "./backgrounds.js";
-import { resolveUnsplashPhoto } from "./unsplash.js";
 import { buildDestination, leadingIconHtml, placeholderFor } from "./search.js";
 import { applyFont, readFontFile } from "./fonts.js";
 import { checkForUpdate } from "./updates.js";
@@ -68,7 +67,6 @@ const els = {
   quickLinkAdd: document.getElementById("quick-link-add"),
   backgroundOptions: document.getElementById("background-options"),
   settingBgNewOnOpen: document.getElementById("setting-bg-new-on-open"),
-  settingUnsplashKey: document.getElementById("setting-unsplash-key"),
   settingBgSource: document.getElementById("setting-bg-source"),
   settingBgCategory: document.getElementById("setting-bg-category"),
   settingBgUpload: document.getElementById("setting-bg-upload"),
@@ -232,10 +230,9 @@ function bindEvents() {
             forceNew: true,
             previousUrl: previewPhoto?.url || settings.lastCustom?.url,
           })
-        : await resolveUnsplashPhoto(
+        : pickUnsplash(
             els.settingBgCategory.value,
-            unsplashPickOpts(true, previewPhoto?.url || settings.lastUnsplash?.url),
-            draft,
+            bgPickOpts(true, previewPhoto?.url || settings.lastUnsplash?.url),
           );
     if (!photo) return;
     previewPhoto = photo;
@@ -333,7 +330,7 @@ const SETTINGS_ANIM_MS = 520;
  * @param {boolean} forceNew
  * @param {string|null|undefined} previousUrl
  */
-function unsplashPickOpts(forceNew, previousUrl) {
+function bgPickOpts(forceNew, previousUrl) {
   return {
     forceNew,
     previousUrl,
@@ -412,7 +409,6 @@ function populateSettingsForm() {
   els.settingWeather.checked = settings.showWeather;
   els.setting24h.checked = settings.use24h;
   els.settingBgNewOnOpen.checked = settings.newPhotoOnOpen;
-  els.settingUnsplashKey.value = settings.unsplashAccessKey || "";
   els.settingBgSource.value = settings.bgSource;
   els.settingBgCategory.value = settings.bgCategory;
   els.settingSearchEngine.value = settings.searchEngine;
@@ -477,7 +473,6 @@ function readFormDraft() {
     use24h: els.setting24h.checked,
     quickLinks: normalizeQuickLinks(draftQuickLinks),
     newPhotoOnOpen: els.settingBgNewOnOpen.checked,
-    unsplashAccessKey: els.settingUnsplashKey.value.trim(),
     bgSource: /** @type {'unsplash'|'custom'} */ (els.settingBgSource.value),
     bgCategory: els.settingBgCategory.value,
     customImages: draftCustomImages,
@@ -501,7 +496,7 @@ function applyPreviewFromForm() {
   updateWeatherVisibilityWithState(draft);
 }
 
-async function previewBackground(draft) {
+function previewBackground(draft) {
   if (!draft.showBackground) {
     showBackgroundFallback();
     els.photoCredit.hidden = true;
@@ -530,10 +525,9 @@ async function previewBackground(draft) {
   const photo =
     cached && cached.category === draft.bgCategory
       ? cached
-      : await resolveUnsplashPhoto(
+      : pickUnsplash(
           draft.bgCategory,
-          unsplashPickOpts(cached?.category !== draft.bgCategory, cached?.url),
-          draft,
+          bgPickOpts(cached?.category !== draft.bgCategory, cached?.url),
         );
   paintBackground(photo, { allowRetry: false, state: draft });
 }
@@ -553,7 +547,6 @@ async function saveSettingsFromForm() {
     use24h: els.setting24h.checked,
     quickLinks: normalizeQuickLinks(draftQuickLinks),
     newPhotoOnOpen: els.settingBgNewOnOpen.checked,
-    unsplashAccessKey: els.settingUnsplashKey.value.trim(),
     bgSource: els.settingBgSource.value,
     bgCategory: els.settingBgCategory.value,
     customImages: draftCustomImages,
@@ -567,10 +560,6 @@ async function saveSettingsFromForm() {
   if (els.settingFontPreset.value === "custom-file" && draftFontDataUrl) {
     patch.customFontDataUrl = draftFontDataUrl;
     patch.customFontFormat = draftFontFormat;
-  }
-
-  if (patch.unsplashAccessKey !== settings.unsplashAccessKey) {
-    await chrome.storage.local.remove("unsplashPools");
   }
 
   settings = await saveSettings(patch);
@@ -883,10 +872,9 @@ async function applyBackground(fromSettings) {
   const photo =
     sameDay && cached
       ? cached
-      : await resolveUnsplashPhoto(
+      : pickUnsplash(
           settings.bgCategory,
-          unsplashPickOpts(forceNew || fromSettings, cached?.url),
-          settings,
+          bgPickOpts(forceNew || fromSettings, cached?.url),
         );
 
   if (!sameDay || fromSettings || forceNew) {
