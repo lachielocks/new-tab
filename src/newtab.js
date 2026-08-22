@@ -33,6 +33,7 @@ const els = {
   searchLeading: document.getElementById("search-leading"),
   searchHint: document.getElementById("search-hint"),
   quickLinks: document.getElementById("quick-links"),
+  quickLinksZone: document.getElementById("quick-links-zone"),
   onboarding: document.getElementById("onboarding"),
   setupForm: document.getElementById("setup-form"),
   setupName: document.getElementById("setup-name"),
@@ -208,6 +209,13 @@ function bindEvents() {
     if (draftQuickLinks.length >= 8) return;
     draftQuickLinks.push({ title: "", url: "" });
     renderQuickLinkRows();
+  });
+
+  els.quickLinksZone.addEventListener("mouseleave", () => {
+    const active = document.activeElement;
+    if (active && els.quickLinks.contains(active)) {
+      /** @type {HTMLElement} */ (active).blur();
+    }
   });
 
   els.settingFontFile.addEventListener("change", async () => {
@@ -398,25 +406,18 @@ function renderQuickLinkRows() {
 function renderQuickLinks() {
   const links = settings.quickLinksEnabled ? settings.quickLinks || [] : [];
   if (!links.length) {
-    els.quickLinks.hidden = true;
+    els.quickLinksZone.hidden = true;
     els.quickLinks.innerHTML = "";
     return;
   }
 
-  els.quickLinks.hidden = false;
+  els.quickLinksZone.hidden = false;
   els.quickLinks.innerHTML = links
     .map((link) => {
       const url = normalizeUrl(link.url);
       if (!url) return "";
-      const domain = linkDomain(url);
-      const label = link.title?.trim() || domain || "Link";
-      const favicon = domain
-        ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`
-        : "";
-      const iconMarkup = favicon
-        ? `<img class="quick-links__icon" src="${favicon}" alt="" width="16" height="16" loading="lazy" />`
-        : "";
-      return `<a class="quick-links__item" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${iconMarkup}<span class="quick-links__label">${escapeHtml(label)}</span></a>`;
+      const label = link.title?.trim() || linkDomain(url) || "Link";
+      return `<a class="quick-links__item" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
     })
     .join("");
 }

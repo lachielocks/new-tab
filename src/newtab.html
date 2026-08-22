@@ -53,23 +53,27 @@
       <time class="clock" id="clock" datetime=""></time>
       <p class="greeting" id="greeting"></p>
 
-      <form class="search" id="search-form" autocomplete="off">
-        <div class="search__field">
-          <span class="search__leading" id="search-leading" aria-hidden="true"></span>
-          <input
-            class="search__input"
-            id="search-input"
-            type="search"
-            name="q"
-            placeholder="Search the web"
-            spellcheck="false"
-            autofocus
-          />
-        </div>
-        <p class="search__hint" id="search-hint">Press Enter to search · Tab to ask AI</p>
-      </form>
+      <div class="search-zone" id="search-zone">
+        <form class="search" id="search-form" autocomplete="off">
+          <div class="search__field">
+            <span class="search__leading" id="search-leading" aria-hidden="true"></span>
+            <input
+              class="search__input"
+              id="search-input"
+              type="search"
+              name="q"
+              placeholder="Search the web"
+              spellcheck="false"
+              autofocus
+            />
+          </div>
+          <p class="search__hint" id="search-hint">Press Enter to search · Tab to ask AI</p>
+        </form>
 
-      <nav class="quick-links" id="quick-links" aria-label="Quick links" hidden></nav>
+        <div class="quick-links-zone" id="quick-links-zone" hidden>
+          <nav class="quick-links" id="quick-links" aria-label="Quick links"></nav>
+        </div>
+      </div>
     </main>
 
     <footer class="credit" id="photo-credit" hidden>
@@ -194,7 +198,7 @@
             <div class="stack" id="quick-links-editor">
               <div class="link-rows" id="quick-links-list"></div>
               <button type="button" class="btn btn--ghost" id="quick-link-add">Add link</button>
-              <p class="field__help">Up to 8 favorites. Hover the page to reveal them beneath search.</p>
+              <p class="field__help">Up to 8 favorites. Hover beneath the search bar to reveal them.</p>
             </div>
           </section>
 
