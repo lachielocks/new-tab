@@ -6,6 +6,7 @@
     "dev": "npm run pack --prefix web && npm run dev --prefix web",
     "build": "npm run pack --prefix web && npm run build --prefix web",
     "pack": "npm run pack --prefix web",
+    "pack:store": "EXTENSION_FLAVOR=store npm run pack --prefix web",
     "web": "npm run dev --prefix web"
   }
 }

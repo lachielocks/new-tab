@@ -1,10 +1,14 @@
 import { loadSettings, saveSettings } from "./storage.js";
 import { fetchWeather, fetchForecast, requestLocationAccess } from "./weather.js";
 import { pickUnsplash, pickCustom, RECENT_UNSPLASH_LIMIT } from "./backgrounds.js";
-import { buildDestination, leadingIconHtml, placeholderFor } from "./search.js";
+import { buildDestination, leadingIconHtml, placeholderFor, storeSearchIconHtml } from "./search.js";
 import { applyFont, readFontFile } from "./fonts.js";
 import { checkForUpdate } from "./updates.js";
 import { enhanceSelects, syncSelectUi, closeAllMenus } from "./dropdown.js";
+import { STORE_BUILD } from "./flavor.js";
+
+document.body.classList.toggle("flavor-store", STORE_BUILD);
+document.body.classList.toggle("flavor-full", !STORE_BUILD);
 
 /** @type {import('./types.js').Settings} */
 let settings;
@@ -105,6 +109,8 @@ async function init() {
   settings = await loadSettings();
   searchMode = settings.searchMode || "web";
   els.aboutVersion.textContent = chrome.runtime.getManifest().version;
+  const searchTab = document.querySelector('.settings-nav__btn[data-tab="search"]');
+  if (searchTab) searchTab.textContent = STORE_BUILD ? "Search" : "Search & AI";
   applyFont(settings);
   applyLayout();
   renderClock();
@@ -278,20 +284,22 @@ function bindEvents() {
   });
 
   els.searchInput.addEventListener("keydown", (e) => {
+    if (STORE_BUILD) return;
     if (e.key === "Tab" && !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey) {
       e.preventDefault();
       setSearchMode(searchMode === "web" ? "ai" : "web");
     }
   });
 
-  els.searchForm.addEventListener("submit", (e) => {
+  els.searchForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const dest = buildDestination(
-      searchMode,
-      settings.searchEngine,
-      settings.aiProvider,
-      els.searchInput.value
-    );
+    const query = els.searchInput.value.trim();
+    if (!query) return;
+    if (STORE_BUILD) {
+      await chrome.search.query({ text: query, disposition: "CURRENT_TAB" });
+      return;
+    }
+    const dest = buildDestination(searchMode, settings.searchEngine, settings.aiProvider, query);
     if (!dest) return;
     window.location.href = dest;
   });
@@ -810,6 +818,16 @@ function renderSearchChrome() {
  * @param {import('./types.js').Settings} state
  */
 function renderSearchChromeWithState(state) {
+  if (STORE_BUILD) {
+    els.searchLeading.innerHTML = storeSearchIconHtml();
+    els.searchInput.placeholder = "Search";
+    els.searchHint.hidden = !state.showSearch || !state.showSearchHint;
+    if (state.showSearch && state.showSearchHint) {
+      els.searchHint.textContent = "Press Enter to search";
+    }
+    return;
+  }
+
   els.searchLeading.innerHTML = leadingIconHtml(
     searchMode,
     state.searchEngine,
@@ -997,6 +1015,7 @@ function updateWeatherVisibilityWithState(state) {
 }
 
 async function maybeShowUpdate() {
+  if (STORE_BUILD) return;
   try {
     const result = await checkForUpdate();
     if (!result.available || !result.downloadUrl) return;

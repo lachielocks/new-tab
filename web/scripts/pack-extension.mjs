@@ -44,6 +44,9 @@ function originPattern(url) {
 
 mkdirSync(outDir, { recursive: true });
 
+const flavor = process.env.EXTENSION_FLAVOR === "store" ? "store" : "full";
+const zipName = flavor === "store" ? "new-tab-store.zip" : "new-tab.zip";
+
 /** @type {Record<string, Uint8Array>} */
 const bundle = {};
 for (const entry of INCLUDE) {
@@ -56,40 +59,62 @@ for (const entry of INCLUDE) {
 const site = siteUrl();
 const origin = originPattern(site);
 
-const updateConfig = {
-  feedUrl: `${site}/version.json`,
-  downloadUrl: `${site}/downloads/new-tab.zip`,
-  siteUrl: site,
-};
-bundle["src/update-config.json"] = new TextEncoder().encode(
-  `${JSON.stringify(updateConfig, null, 2)}\n`
+bundle["src/flavor.js"] = new TextEncoder().encode(
+  `/** Injected at pack time. Unpacked repo defaults to full. */\nexport const FLAVOR = ${JSON.stringify(flavor)};\nexport const STORE_BUILD = ${flavor === "store"};\n`
 );
 
 const manifest = JSON.parse(readFileSync(join(extRoot, "manifest.json"), "utf8"));
-manifest.host_permissions = [...new Set([...(manifest.host_permissions || []), origin])];
-const csp = manifest.content_security_policy?.extension_pages || "";
-if (csp && !csp.includes(new URL(site).origin)) {
-  manifest.content_security_policy = {
-    extension_pages: csp.replace(
-      "connect-src 'self'",
-      `connect-src 'self' ${new URL(site).origin}`
-    ),
+
+if (flavor === "store") {
+  manifest.description =
+    "A calm replacement for Chrome’s new tab, with weather, a clock, and a daily photo.";
+  manifest.permissions = [...new Set([...(manifest.permissions || []), "search"])];
+  bundle["src/update-config.json"] = new TextEncoder().encode(
+    `${JSON.stringify({ feedUrl: "", downloadUrl: "", siteUrl: "" }, null, 2)}\n`
+  );
+} else {
+  const updateConfig = {
+    feedUrl: `${site}/version.json`,
+    downloadUrl: `${site}/downloads/new-tab.zip`,
+    siteUrl: site,
   };
+  bundle["src/update-config.json"] = new TextEncoder().encode(
+    `${JSON.stringify(updateConfig, null, 2)}\n`
+  );
+  manifest.host_permissions = [...new Set([...(manifest.host_permissions || []), origin])];
+  const csp = manifest.content_security_policy?.extension_pages || "";
+  if (csp && !csp.includes(new URL(site).origin)) {
+    manifest.content_security_policy = {
+      extension_pages: csp.replace(
+        "connect-src 'self'",
+        `connect-src 'self' ${new URL(site).origin}`
+      ),
+    };
+  }
 }
+
 bundle["manifest.json"] = new TextEncoder().encode(`${JSON.stringify(manifest, null, 2)}\n`);
 
 const zipped = zipSync(bundle, { level: 6 });
-writeFileSync(join(outDir, "new-tab.zip"), zipped);
+writeFileSync(join(outDir, zipName), zipped);
 
-const payload = {
-  name: manifest.name,
-  version: manifest.version,
-  releasedAt: new Date().toISOString(),
-  downloadUrl: `${site}/downloads/new-tab.zip`,
-  notesUrl: `${site}/#install`,
-  changelog: "Latest build from the New Tab repository.",
-};
+if (flavor === "store") {
+  const distDir = join(extRoot, "dist");
+  mkdirSync(distDir, { recursive: true });
+  writeFileSync(join(distDir, zipName), zipped);
+}
 
-writeFileSync(versionOut, JSON.stringify(payload, null, 2));
-console.log(`Packed extension v${manifest.version} → ${site}`);
-console.log(`Feed → ${versionOut}`);
+if (flavor === "full") {
+  const payload = {
+    name: manifest.name,
+    version: manifest.version,
+    releasedAt: new Date().toISOString(),
+    downloadUrl: `${site}/downloads/new-tab.zip`,
+    notesUrl: `${site}/#install`,
+    changelog: "Latest build from the New Tab repository.",
+  };
+  writeFileSync(versionOut, JSON.stringify(payload, null, 2));
+}
+
+console.log(`Packed ${flavor} extension v${manifest.version} → ${join(outDir, zipName)}`);
+if (flavor === "full") console.log(`Feed → ${versionOut}`);

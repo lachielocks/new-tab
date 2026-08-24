@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "pack": "node scripts/pack-extension.mjs",
+    "pack:store": "EXTENSION_FLAVOR=store node scripts/pack-extension.mjs",
     "predev": "node scripts/pack-extension.mjs",
     "dev": "next dev",
     "prebuild": "node scripts/pack-extension.mjs",

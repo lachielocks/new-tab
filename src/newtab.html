@@ -136,7 +136,8 @@
                     <span class="switch__track" aria-hidden="true"></span>
                   </span>
                 </label>
-                <p class="field__help">Shows “Press Enter to search · Tab to ask AI” beneath the search bar.</p>
+                <p class="field__help js-full-only">Shows “Press Enter to search · Tab to ask AI” beneath the search bar.</p>
+                <p class="field__help js-store-only">Shows “Press Enter to search” beneath the search bar.</p>
                 <label class="field field--row">
                   <span class="field__label">Weather</span>
                   <span class="switch">
@@ -248,6 +249,7 @@
               </section>
 
               <section class="tab-panel" data-panel="search">
+                <div class="js-full-only">
                 <label class="field">
                   <span class="field__label">Search engine</span>
                   <select class="field__input field__input--select" id="setting-search-engine">
@@ -271,6 +273,10 @@
                   </select>
                 </label>
                 <p class="field__help">Press Tab in the search bar to switch between web search and your AI provider.</p>
+                </div>
+                <div class="js-store-only">
+                  <p class="field__help">Search uses the engine you chose in Chrome settings. This page does not change your default search provider.</p>
+                </div>
               </section>
 
               <section class="tab-panel" data-panel="fonts">
@@ -308,7 +314,8 @@
                   <img class="about__mark" src="../icons/favicon-48.png" alt="" width="48" height="48" />
                   <h3 class="about__name">New Tab</h3>
                   <p class="about__version">Version <span id="about-version"></span></p>
-                  <p class="about__lede">A calm new tab with weather, clock, backgrounds, search, and AI — all on this device.</p>
+                  <p class="about__lede js-full-only">A calm new tab with weather, clock, backgrounds, search, and AI — all on this device.</p>
+                  <p class="about__lede js-store-only">A calm replacement for Chrome’s new tab, with weather, a clock, and a daily photo — all on this device.</p>
                   <ul class="about__list">
                     <li>Weather from Open-Meteo</li>
                     <li>Photos from Unsplash</li>

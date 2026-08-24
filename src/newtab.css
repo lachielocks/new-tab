@@ -35,6 +35,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.js-store-only {
+  display: none;
+}
+
+body.flavor-store .js-store-only {
+  display: block;
+}
+
+body.flavor-store .js-full-only {
+  display: none !important;
+}
+
 .app-shell {
   display: flex;
   height: 100vh;
