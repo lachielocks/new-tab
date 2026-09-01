@@ -55,22 +55,17 @@ export default function Home() {
           one-key AI. Built to feel quiet — not like another dashboard.
         </p>
         <div className={styles.hero__actions}>
-          <a
-            className={`${styles.btn} ${styles["btn--primary"]}`}
-            href={CHROME_WEB_STORE_URL}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            Add to Chrome
+          <a className={`${styles.btn} ${styles["btn--primary"]}`} href="/download">
+            Download v{version.version}
           </a>
           <a className={`${styles.btn} ${styles["btn--ghost"]}`} href="#install">
             Install guide
           </a>
         </div>
         <div className={styles.meta}>
-          <span>Chrome Web Store</span>
-          <span>v{version.version}</span>
+          <span>Chrome · Edge · Brave</span>
           <span>Manifest V3</span>
+          <span>Unpacked install</span>
         </div>
       </section>
 
@@ -79,29 +74,41 @@ export default function Home() {
       </section>
 
       <section className={`${styles.section} ${styles.reveal}`} id="install">
-        <h2>Install from the Chrome Web Store</h2>
+        <h2>Install in developer mode</h2>
         <p>
-          The easiest way to install New Tab. Chrome keeps store extensions up to date
-          automatically — no zip downloads or developer mode required.
+          Chrome only auto-updates store extensions. This build installs unpacked — you load
+          the folder once, then use the in-extension update banner when a newer zip ships.
         </p>
         <ol className={styles.steps}>
           <li>
             <div>
-              <h3>Open the listing</h3>
+              <h3>Download the zip</h3>
               <p>
-                Go to the{" "}
-                <a href={CHROME_WEB_STORE_URL} rel="noopener noreferrer" target="_blank">
-                  New Tab Chrome Web Store page
-                </a>{" "}
-                and click <strong>Add to Chrome</strong>.
+                Grab <a href="/download">new-tab.zip</a>, then unzip it somewhere permanent
+                (for example <code>~/Extensions/new-tab</code>).
               </p>
             </div>
           </li>
           <li>
             <div>
-              <h3>Confirm the install</h3>
+              <h3>Open extensions</h3>
               <p>
-                Review the permissions prompt, then click <strong>Add extension</strong>.
+                Visit <code>chrome://extensions</code> (or <code>edge://extensions</code>).
+              </p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>Turn on Developer mode</h3>
+              <p>Toggle Developer mode in the top-right of the extensions page.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>Load unpacked</h3>
+              <p>
+                Click <strong>Load unpacked</strong> and select the unzipped folder that
+                contains <code>manifest.json</code>.
               </p>
             </div>
           </li>
@@ -116,6 +123,14 @@ export default function Home() {
           </li>
         </ol>
 
+        <h3 className={styles.subheading}>Chrome Web Store</h3>
+        <p>
+          Prefer a one-click install with automatic updates? New Tab is also on the{" "}
+          <a href={CHROME_WEB_STORE_URL} rel="noopener noreferrer" target="_blank">
+            Chrome Web Store
+          </a>
+          .
+        </p>
         <div className={styles["note-box"]}>
           <strong>Seeing &ldquo;not trusted by Enhanced Safe Browsing&rdquo;?</strong>
           <p>
@@ -133,44 +148,17 @@ export default function Home() {
             .
           </p>
         </div>
-
-        <h3 className={styles.subheading}>Developer mode (optional)</h3>
-        <p>
-          Prefer an unpacked install, or testing a build before it ships to the store? Load
-          the zip manually — you will need to reload the extension when updates ship.
-        </p>
-        <ol className={styles.steps}>
-          <li>
-            <div>
-              <h3>Download the zip</h3>
-              <p>
-                Grab <a href="/download">new-tab.zip</a>, then unzip it somewhere permanent
-                (for example <code>~/Extensions/new-tab</code>).
-              </p>
-            </div>
-          </li>
-          <li>
-            <div>
-              <h3>Load unpacked</h3>
-              <p>
-                Visit <code>chrome://extensions</code>, enable Developer mode, click{" "}
-                <strong>Load unpacked</strong>, and select the folder with{" "}
-                <code>manifest.json</code>.
-              </p>
-            </div>
-          </li>
-        </ol>
       </section>
 
       <section className={`${styles.section} ${styles.reveal}`} id="update">
         <h2>Updating</h2>
         <p>
-          Store installs update automatically when a new version is published. Unpacked installs
-          check <code className="mono">/version.json</code> on this site and show a banner when
-          you&apos;re behind.
+          Every deploy of this site packs a fresh zip and publishes{" "}
+          <code className="mono">/version.json</code>. The extension checks that feed and
+          shows a banner when you&apos;re behind. Store installs update automatically.
         </p>
         <div className={styles["update-box"]}>
-          <strong>Unpacked installs only</strong>
+          <strong>When an update appears</strong>
           <ol>
             <li>Download the new zip from the banner or this page.</li>
             <li>Replace the files in your existing extension folder (keep the same path).</li>
