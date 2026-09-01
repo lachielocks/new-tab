@@ -10,7 +10,7 @@ const display = Bricolage_Grotesque({
 export const metadata: Metadata = {
   title: "New Tab — calm Chrome new tab",
   description:
-    "A calm new tab with weather, Unsplash backgrounds, search, and AI. Install in Chrome developer mode.",
+    "A calm new tab with weather, Unsplash backgrounds, search, and AI. Available on the Chrome Web Store.",
   icons: {
     icon: "/favicon.png",
   },
