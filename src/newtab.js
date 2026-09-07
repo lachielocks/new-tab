@@ -52,7 +52,7 @@ const els = {
   settings: document.getElementById("settings"),
   settingsOpen: document.getElementById("settings-open"),
   settingsClose: document.getElementById("settings-close"),
-  settingsSave: document.getElementById("settings-save"),
+  settingsRevert: document.getElementById("settings-revert"),
   settingsFoot: document.getElementById("settings-foot"),
   aboutVersion: document.getElementById("about-version"),
   settingName: document.getElementById("setting-name"),
@@ -104,6 +104,7 @@ let clockTimer = 0;
 let previewTimer = null;
 /** @type {{ url: string, credit?: string, link?: string } | null} */
 let previewPhoto = null;
+let sessionSettingsBackup = null;
 
 async function init() {
   settings = await loadSettings();
@@ -188,7 +189,7 @@ function bindEvents() {
   els.settingsOpen.addEventListener("click", openSettings);
   els.settingsClose.addEventListener("click", closeSettings);
 
-  els.settingsSave.addEventListener("click", saveSettingsFromForm);
+  els.settingsRevert.addEventListener("click", saveSettingsFromForm);
 
   els.settings.addEventListener("input", schedulePreview);
   els.settings.addEventListener("change", schedulePreview);
@@ -356,6 +357,7 @@ function unsplashRememberPatch(photo) {
 }
 
 function openSettings() {
+  sessionSettingsBackup = JSON.parse(JSON.stringify(settings));
   populateSettingsForm();
   previewPhoto = null;
   const activeTab = document.querySelector(".settings-nav__btn.is-active")?.dataset.tab || "general";
@@ -375,7 +377,7 @@ function finishCloseSettings() {
   els.settings.setAttribute("aria-hidden", "true");
 }
 
-function closeSettings({ revert = true } = {}) {
+function closeSettings() {
   if (!document.body.classList.contains("settings-open")) {
     finishCloseSettings();
     return;
@@ -384,7 +386,6 @@ function closeSettings({ revert = true } = {}) {
   document.body.classList.remove("settings-open", "settings-tab-links");
   previewPhoto = null;
   closeAllMenus();
-  if (revert) revertPreview();
 
   let finished = false;
   const done = () => {
@@ -456,9 +457,14 @@ function revertPreview() {
 function schedulePreview() {
   if (els.settings.hidden) return;
   if (previewTimer) clearTimeout(previewTimer);
-  previewTimer = setTimeout(() => {
+  previewTimer = setTimeout(async () => {
     previewTimer = null;
+    const draft = readFormDraft();
+    settings = await saveSettings(draft);
     applyPreviewFromForm();
+    if (settings.showWeather && els.weather.hidden) {
+      loadWeather();
+    }
   }, 60);
 }
 
@@ -541,51 +547,18 @@ function previewBackground(draft) {
 }
 
 async function saveSettingsFromForm() {
-  const patch = {
-    name: els.settingName.value.trim() || settings.name,
-    showClock: els.settingShowClock.checked,
-    showGreeting: els.settingShowGreeting.checked,
-    showSearch: els.settingShowSearch.checked,
-    showSearchHint: els.settingShowSearchHint.checked,
-    showQuickLinks: els.settingShowQuickLinks.checked,
-    showPhotoCredit: els.settingShowPhotoCredit.checked,
-    showSettingsButton: els.settingShowSettingsButton.checked,
-    showBackground: els.settingShowBackground.checked,
-    showWeather: els.settingWeather.checked,
-    use24h: els.setting24h.checked,
-    quickLinks: normalizeQuickLinks(draftQuickLinks),
-    newPhotoOnOpen: els.settingBgNewOnOpen.checked,
-    bgSource: els.settingBgSource.value,
-    bgCategory: els.settingBgCategory.value,
-    customImages: draftCustomImages,
-    searchEngine: els.settingSearchEngine.value,
-    aiProvider: els.settingAiProvider.value,
-    fontPreset: els.settingFontPreset.value,
-    googleFontName: els.settingFontGoogle.value.trim(),
-    searchMode,
-  };
-
-  if (els.settingFontPreset.value === "custom-file" && draftFontDataUrl) {
-    patch.customFontDataUrl = draftFontDataUrl;
-    patch.customFontFormat = draftFontFormat;
+  if (sessionSettingsBackup) {
+    previewPhoto = null;
+    settings = await saveSettings(sessionSettingsBackup);
+    populateSettingsForm();
+    applyPreviewFromForm();
+    await applyBackground(true);
+    updateWeatherVisibility();
+    if (settings.showWeather && els.weather.hidden) {
+      loadWeather();
+    }
+    // Don't close so they can see the revert, or close? The prompt: "a revert button for each session". We'll keep it open.
   }
-
-  settings = await saveSettings(patch);
-  previewPhoto = null;
-  applyFont(settings);
-  applyLayout();
-  renderGreeting();
-  renderClock();
-  renderSearchChrome();
-  renderQuickLinks();
-  updateWeatherVisibility();
-  if (settings.showWeather) {
-    await requestLocationAccess();
-    loadWeather();
-  }
-  await applyBackground(true);
-  focusPrimary();
-  closeSettings({ revert: false });
 }
 
 function applyLayout() {

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "New Tab",
   "description": "A calm new tab with weather, clock, Unsplash backgrounds, search, and AI.",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "chrome_url_overrides": {
     "newtab": "src/newtab.html"
   },
