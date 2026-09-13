@@ -1502,7 +1502,7 @@ function renderQuickLinksWithState(state) {
       const text =
         display !== "icon" ? `<span class="quick-links__label">${escapeHtml(label)}</span>` : "";
       const iconOnly = display === "icon" ? " quick-links__item--icon-only" : "";
-      return `<a class="quick-links__item${iconOnly}" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(label)}">${icon}${text}</a>`;
+      return `<a class="quick-links__item${iconOnly}" href="${escapeAttr(url)}" title="${escapeAttr(label)}">${icon}${text}</a>`;
     })
     .join("");
   setRevealed(els.quickLinksZone, true);
