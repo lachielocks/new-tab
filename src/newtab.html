@@ -35,126 +35,150 @@
           <div class="bg__veil"></div>
         </div>
 
-        <header class="topbar" id="topbar">
-          <div class="weather ui-reveal" id="weather" hidden>
-            <div class="weather__shell" id="weather-shell">
-              <div class="weather__top">
-                <button type="button" class="weather__chip" id="weather-chip" aria-expanded="false" aria-controls="weather-body">
-                  <span class="weather__icon" id="weather-icon" aria-hidden="true"></span>
-                  <div class="weather__text">
-                    <span class="weather__temp" id="weather-temp"></span>
-                    <span class="weather__cond" id="weather-cond"></span>
-                  </div>
-                </button>
-                <button type="button" class="icon-btn icon-btn--ghost weather__close" id="forecast-close" aria-label="Close forecast" hidden tabindex="-1">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-                  </svg>
-                </button>
-              </div>
+        <div class="layout-grid" id="layout-grid" aria-label="New tab layout"></div>
 
-              <div class="weather__body" id="weather-body" role="dialog" aria-labelledby="forecast-title" aria-hidden="true">
-                <div class="weather__body-inner">
-                  <div class="weather__loading" id="weather-loading">
-                    <span class="weather__spinner" aria-hidden="true"></span>
-                    <p class="weather__loading-text">Loading forecast…</p>
-                  </div>
-
-                  <div class="weather__content" id="weather-content" hidden>
-                    <div class="weather__panel-head">
-                      <div>
-                        <p class="panel__eyebrow" id="forecast-place">Local weather</p>
-                        <h2 class="panel__title" id="forecast-title">Forecast</h2>
+        <div class="widget-pool" id="widget-pool">
+          <div class="widget" data-widget="weather" id="widget-weather">
+            <div class="weather ui-reveal" id="weather" hidden>
+              <div class="weather__shell" id="weather-shell">
+                <div class="weather__top">
+                  <button type="button" class="weather__chip" id="weather-chip" aria-expanded="false" aria-controls="weather-body">
+                    <span class="weather__chip-loading" id="weather-chip-loading" aria-hidden="true">
+                      <span class="weather__spinner weather__spinner--chip"></span>
+                      <span class="weather__chip-loading-text">Loading</span>
+                    </span>
+                    <span class="weather__chip-data" id="weather-chip-data">
+                      <span class="weather__icon" id="weather-icon" aria-hidden="true"></span>
+                      <div class="weather__text">
+                        <span class="weather__temp" id="weather-temp"></span>
+                        <span class="weather__cond" id="weather-cond"></span>
                       </div>
+                    </span>
+                  </button>
+                  <button type="button" class="icon-btn icon-btn--ghost weather__close" id="forecast-close" aria-label="Close forecast" hidden tabindex="-1">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <div class="weather__body" id="weather-body" role="dialog" aria-labelledby="forecast-title" aria-hidden="true">
+                  <div class="weather__body-inner">
+                    <div class="weather__loading" id="weather-loading">
+                      <span class="weather__spinner" aria-hidden="true"></span>
+                      <p class="weather__loading-text">Loading forecast…</p>
                     </div>
 
-                    <div class="forecast-now" id="forecast-now">
-                      <div class="forecast-now__main">
-                        <span class="forecast-now__icon" id="forecast-now-icon" aria-hidden="true"></span>
+                    <div class="weather__content" id="weather-content" hidden>
+                      <div class="weather__panel-head">
                         <div>
-                          <p class="forecast-now__temp" id="forecast-now-temp"></p>
-                          <p class="forecast-now__label" id="forecast-now-label"></p>
+                          <p class="panel__eyebrow" id="forecast-place">Local weather</p>
+                          <h2 class="panel__title" id="forecast-title">Forecast</h2>
                         </div>
                       </div>
-                      <dl class="forecast-stats" id="forecast-stats"></dl>
+
+                      <div class="forecast-now" id="forecast-now">
+                        <div class="forecast-now__main">
+                          <span class="forecast-now__icon" id="forecast-now-icon" aria-hidden="true"></span>
+                          <div>
+                            <p class="forecast-now__temp" id="forecast-now-temp"></p>
+                            <p class="forecast-now__label" id="forecast-now-label"></p>
+                          </div>
+                        </div>
+                        <dl class="forecast-stats" id="forecast-stats"></dl>
+                      </div>
+
+                      <section class="forecast-section forecast-section--hourly">
+                        <h3 class="forecast-section__title">Next 24 hours</h3>
+                        <div class="forecast-hourly" id="forecast-hourly"></div>
+                      </section>
+
+                      <section class="forecast-section forecast-section--daily">
+                        <h3 class="forecast-section__title">7-day</h3>
+                        <div class="forecast-daily" id="forecast-daily"></div>
+                      </section>
                     </div>
-
-                <section class="forecast-section forecast-section--hourly">
-                  <h3 class="forecast-section__title">Next 24 hours</h3>
-                  <div class="forecast-hourly" id="forecast-hourly"></div>
-                </section>
-
-                <section class="forecast-section forecast-section--daily">
-                  <h3 class="forecast-section__title">7-day</h3>
-                  <div class="forecast-daily" id="forecast-daily"></div>
-                </section>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <button type="button" class="icon-btn ui-reveal" id="settings-open" aria-label="Open settings">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          </button>
-        </header>
 
-        <main class="stage">
-          <div class="clock-wrap ui-reveal" id="clock-wrap">
-            <time class="clock clock--digital is-active" id="clock" datetime="">
-              <span class="clock__core">
-                <span class="clock__hm" id="clock-hm"></span><span class="clock__sec" id="clock-sec" aria-hidden="true"><span class="clock__sec-inner"><span class="clock__sec-gap">:</span><span class="clock__sec-digits" id="clock-sec-digits">00</span></span></span>
-              </span><span class="clock__period" id="clock-period"></span>
-            </time>
-            <div class="clock clock--analog" id="clock-analog" aria-hidden="true">
-              <svg class="analog" viewBox="0 0 100 100" role="img" aria-label="Analog clock">
-                <circle class="analog__face" cx="50" cy="50" r="46" />
-                <circle class="analog__ring" cx="50" cy="50" r="42" />
-                <line class="analog__hand analog__hand--hour" id="analog-hour" x1="50" y1="50" x2="50" y2="28" />
-                <line class="analog__hand analog__hand--minute" id="analog-minute" x1="50" y1="50" x2="50" y2="18" />
-                <line class="analog__hand analog__hand--second" id="analog-second" x1="50" y1="54" x2="50" y2="14" />
-                <circle class="analog__pivot" cx="50" cy="50" r="2.2" />
+          <div class="widget" data-widget="settings" id="widget-settings">
+            <button type="button" class="icon-btn ui-reveal" id="settings-open" aria-label="Open settings">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                <circle cx="12" cy="12" r="3"/>
               </svg>
+            </button>
+          </div>
+
+          <div class="widget" data-widget="clock" id="widget-clock">
+            <div class="clock-wrap ui-reveal" id="clock-wrap">
+              <time class="clock clock--digital is-active" id="clock" datetime="">
+                <span class="clock__core">
+                  <span class="clock__hm" id="clock-hm"></span><span class="clock__sec" id="clock-sec" aria-hidden="true"><span class="clock__sec-inner"><span class="clock__sec-gap">:</span><span class="clock__sec-digits" id="clock-sec-digits">00</span></span></span>
+                </span><span class="clock__period" id="clock-period"></span>
+              </time>
+              <div class="clock clock--analog" id="clock-analog" aria-hidden="true">
+                <svg class="analog" viewBox="0 0 100 100" role="img" aria-label="Analog clock">
+                  <circle class="analog__face" cx="50" cy="50" r="46" />
+                  <circle class="analog__ring" cx="50" cy="50" r="42" />
+                  <line class="analog__hand analog__hand--hour" id="analog-hour" x1="50" y1="50" x2="50" y2="28" />
+                  <line class="analog__hand analog__hand--minute" id="analog-minute" x1="50" y1="50" x2="50" y2="18" />
+                  <line class="analog__hand analog__hand--second" id="analog-second" x1="50" y1="54" x2="50" y2="14" />
+                  <circle class="analog__pivot" cx="50" cy="50" r="2.2" />
+                </svg>
+              </div>
             </div>
           </div>
-          <p class="greeting ui-reveal" id="greeting"></p>
 
-          <div class="search-zone ui-reveal" id="search-zone">
-            <form class="search" id="search-form" autocomplete="off">
-              <div class="search__field">
-                <span class="search__leading" id="search-leading" aria-hidden="true"></span>
-                <input
-                  class="search__input"
-                  id="search-input"
-                  type="search"
-                  name="q"
-                  placeholder="Search the web"
-                  spellcheck="false"
-                  autofocus
-                />
-              </div>
-              <p class="search__hint ui-reveal" id="search-hint">Press Enter to search · Tab to ask AI</p>
-            </form>
+          <div class="widget" data-widget="greeting" id="widget-greeting">
+            <p class="greeting ui-reveal" id="greeting"></p>
+          </div>
 
+          <div class="widget" data-widget="search" id="widget-search">
+            <div class="search-zone ui-reveal" id="search-zone">
+              <form class="search" id="search-form" autocomplete="off">
+                <div class="search__field">
+                  <span class="search__leading" id="search-leading" aria-hidden="true"></span>
+                  <input
+                    class="search__input"
+                    id="search-input"
+                    type="search"
+                    name="q"
+                    placeholder="Search the web"
+                    spellcheck="false"
+                    autofocus
+                  />
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="widget" data-widget="quicklinks" id="widget-quicklinks">
             <div class="quick-links-zone ui-reveal" id="quick-links-zone" hidden>
               <nav class="quick-links" id="quick-links" aria-label="Quick links"></nav>
             </div>
           </div>
-        </main>
 
-        <div class="corner-controls">
-          <button type="button" class="icon-btn wallpaper-reroll ui-reveal" id="wallpaper-reroll" hidden aria-label="New wallpaper" title="New wallpaper">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
-              <path d="M21 3v6h-6"/>
-            </svg>
-          </button>
-          <footer class="credit ui-reveal" id="photo-credit" hidden>
-            <a id="photo-credit-link" href="#" target="_blank" rel="noopener noreferrer"></a>
-          </footer>
+          <div class="widget" data-widget="reroll" id="widget-reroll">
+            <button type="button" class="icon-btn wallpaper-reroll ui-reveal" id="wallpaper-reroll" hidden aria-label="New wallpaper" title="New wallpaper">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+                <path d="M21 3v6h-6"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="widget" data-widget="credit" id="widget-credit">
+            <footer class="credit ui-reveal" id="photo-credit" hidden>
+              <a id="photo-credit-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+            </footer>
+          </div>
         </div>
+
+        <p class="search__hint ui-reveal" id="search-hint" hidden>Press Enter to search · Tab to ask AI</p>
       </div>
 
       <aside class="settings-sidebar" id="settings" hidden aria-hidden="true" aria-label="Settings">
@@ -168,119 +192,73 @@
           </button>
         </header>
 
-        <nav class="settings-nav" id="settings-tabs" aria-label="Settings sections">
-          <button type="button" class="settings-nav__btn is-active" data-tab="general">General</button>
-          <button type="button" class="settings-nav__btn" data-tab="links">Links</button>
-          <button type="button" class="settings-nav__btn" data-tab="background">Background</button>
-          <button type="button" class="settings-nav__btn" data-tab="search">Search & AI</button>
-          <button type="button" class="settings-nav__btn" data-tab="fonts">Fonts</button>
-          <button type="button" class="settings-nav__btn" data-tab="about">About</button>
-        </nav>
+        <div class="settings-views" id="settings-views">
+          <div class="settings-home" id="settings-home">
+            <nav class="settings-nav" id="settings-tabs" aria-label="Settings sections">
+              <span class="settings-nav__indicator" id="settings-nav-indicator" aria-hidden="true"></span>
+              <button type="button" class="settings-nav__btn is-active" data-tab="general">General</button>
+              <button type="button" class="settings-nav__btn" data-tab="links">Links</button>
+              <button type="button" class="settings-nav__btn" data-tab="background">Background</button>
+              <button type="button" class="settings-nav__btn" data-tab="search">Search & AI</button>
+              <button type="button" class="settings-nav__btn" data-tab="fonts">Fonts</button>
+              <button type="button" class="settings-nav__btn" data-tab="about">About</button>
+            </nav>
 
-        <div class="settings-sidebar__main">
-          <div class="settings-content">
-            <div class="tab-panels">
-              <section class="tab-panel is-active" data-panel="general">
-                <p class="panel__eyebrow">On this page</p>
-                <label class="field field--row" data-highlight="#clock-wrap">
-                  <span class="field__label">Clock</span>
-                  <span class="switch">
-                    <input type="checkbox" id="setting-show-clock" checked />
-                    <span class="switch__track" aria-hidden="true"></span>
-                  </span>
-                </label>
-                <label class="field field--row" data-highlight="#greeting">
-                  <span class="field__label">Greeting</span>
-                  <span class="switch">
-                    <input type="checkbox" id="setting-show-greeting" checked />
-                    <span class="switch__track" aria-hidden="true"></span>
-                  </span>
-                </label>
-                <label class="field field--row" data-highlight="#search-zone">
-                  <span class="field__label">Search bar</span>
-                  <span class="switch">
-                    <input type="checkbox" id="setting-show-search" checked />
-                    <span class="switch__track" aria-hidden="true"></span>
-                  </span>
-                </label>
-                <label class="field field--row" data-highlight="#search-hint">
-                  <span class="field__label">Keyboard shortcuts hint</span>
-                  <span class="switch">
-                    <input type="checkbox" id="setting-show-search-hint" checked />
-                    <span class="switch__track" aria-hidden="true"></span>
-                  </span>
-                </label>
-                <p class="field__help js-full-only">Shows “Press Enter to search · Tab to ask AI” beneath the search bar.</p>
-                <p class="field__help js-store-only">Shows “Press Enter to search” beneath the search bar.</p>
-                <label class="field field--row" data-highlight="#weather">
-                  <span class="field__label">Weather</span>
-                  <span class="switch">
-                    <input type="checkbox" id="setting-weather" checked />
-                    <span class="switch__track" aria-hidden="true"></span>
-                  </span>
-                </label>
-                <p class="field__help">Weather needs a one-time location permission. Click “Enable location” on the weather chip, or turn weather on and allow access when Chrome asks.</p>
-                <label class="field field--row" data-highlight="#photo-credit">
-                  <span class="field__label">Photo credit</span>
-                  <span class="switch">
-                    <input type="checkbox" id="setting-show-photo-credit" checked />
-                    <span class="switch__track" aria-hidden="true"></span>
-                  </span>
-                </label>
-                <label class="field field--row" data-highlight="#wallpaper-reroll">
-                  <span class="field__label">Wallpaper reroll</span>
-                  <span class="switch">
-                    <input type="checkbox" id="setting-show-reroll" checked />
-                    <span class="switch__track" aria-hidden="true"></span>
-                  </span>
-                </label>
-                <p class="field__help">Shows a reload button in the bottom-right to pick a new wallpaper.</p>
-                <label class="field field--row" data-highlight="#settings-open">
-                  <span class="field__label">Settings button</span>
-                  <span class="switch">
-                    <input type="checkbox" id="setting-show-settings-button" checked />
-                    <span class="switch__track" aria-hidden="true"></span>
-                  </span>
-                </label>
-                <p class="field__help">Turn off the settings button to open settings from this extension’s icon in Chrome’s toolbar.</p>
-                <p class="panel__eyebrow settings-section__eyebrow">Personal</p>
-                <label class="field">
-                  <span class="field__label">Your name</span>
-                  <input class="field__input" id="setting-name" type="text" maxlength="40" />
-                </label>
-                <label class="field">
-                  <span class="field__label">Clock style</span>
-                  <select class="field__input field__input--select" id="setting-clock-style" data-menu="clock-style">
-                    <option value="digital" data-preview="digital">Digital</option>
-                    <option value="analog" data-preview="analog">Analog</option>
-                  </select>
-                </label>
-                <label class="field field--row" data-highlight="#clock-wrap">
-                  <span class="field__label">24-hour clock</span>
-                  <span class="switch">
-                    <input type="checkbox" id="setting-24h" />
-                    <span class="switch__track" aria-hidden="true"></span>
-                  </span>
-                </label>
-                <p class="field__help" id="clock-24h-help" hidden>24-hour format applies to the digital clock.</p>
-                <label class="field field--row" data-highlight="#clock-wrap">
-                  <span class="field__label">Show seconds</span>
-                  <span class="switch">
-                    <input type="checkbox" id="setting-show-seconds" />
-                    <span class="switch__track" aria-hidden="true"></span>
-                  </span>
-                </label>
-              </section>
+            <div class="settings-sidebar__main" id="settings-main">
+              <div class="settings-content">
+                <div class="tab-panels">
+                  <section class="tab-panel is-active" data-panel="general">
+                    <p class="panel__eyebrow">Layout</p>
+                    <button type="button" class="btn btn--ghost" id="layout-edit">Edit layout</button>
+                    <p class="field__help">Place any widget on a 3×3 grid. What’s on the grid is what appears on your new tab.</p>
+                    <p class="panel__eyebrow settings-section__eyebrow">Personal</p>
+                    <label class="field">
+                      <span class="field__label">Your name</span>
+                      <input class="field__input" id="setting-name" type="text" maxlength="40" />
+                    </label>
+                    <label class="field">
+                      <span class="field__label">Clock style</span>
+                      <select class="field__input field__input--select" id="setting-clock-style" data-menu="clock-style">
+                        <option value="digital" data-preview="digital">Digital</option>
+                        <option value="analog" data-preview="analog">Analog</option>
+                      </select>
+                    </label>
+                    <label class="field field--row" data-highlight="#clock-wrap">
+                      <span class="field__label">24-hour clock</span>
+                      <span class="switch">
+                        <input type="checkbox" id="setting-24h" />
+                        <span class="switch__track" aria-hidden="true"></span>
+                      </span>
+                    </label>
+                    <p class="field__help" id="clock-24h-help" hidden>24-hour format applies to the digital clock.</p>
+                    <label class="field field--row" data-highlight="#clock-wrap">
+                      <span class="field__label">Show seconds</span>
+                      <span class="switch">
+                        <input type="checkbox" id="setting-show-seconds" />
+                        <span class="switch__track" aria-hidden="true"></span>
+                      </span>
+                    </label>
+                    <label class="field field--row" data-highlight="#search-hint">
+                      <span class="field__label">Keyboard shortcuts hint</span>
+                      <span class="switch">
+                        <input type="checkbox" id="setting-show-search-hint" checked />
+                        <span class="switch__track" aria-hidden="true"></span>
+                      </span>
+                    </label>
+                    <p class="field__help js-full-only">Shows shortcut tips at the bottom of the page. Hides automatically after 5 opens.</p>
+                    <p class="field__help js-store-only">Shows “Press Enter to search” at the bottom of the page. Hides automatically after 5 opens.</p>
+                  </section>
 
               <section class="tab-panel" data-panel="links">
+                <p class="field__help">Add favorites for the Quick links widget. Place that widget in Edit layout to show them on your new tab.</p>
                 <label class="field field--row" data-highlight="#quick-links-zone">
-                  <span class="field__label">Quick links</span>
+                  <span class="field__label">Always show links</span>
                   <span class="switch">
-                    <input type="checkbox" id="setting-show-quick-links" checked />
+                    <input type="checkbox" id="setting-always-show-quick-links" />
                     <span class="switch__track" aria-hidden="true"></span>
                   </span>
                 </label>
-                <p class="field__help">Requires the search bar. Links appear when you hover beneath it on the new tab.</p>
+                <p class="field__help">When off, links stay hidden until you hover the links area.</p>
                 <div class="stack" id="quick-links-editor">
                   <div class="link-rows" id="quick-links-list"></div>
                   <button type="button" class="btn btn--ghost" id="quick-link-add">Add link</button>
@@ -341,6 +319,11 @@
                     </div>
                     <div class="thumbs" id="custom-thumbs"></div>
                     <p class="field__help">Uploads stay on this device. With “New photo on open” off, the same image stays until you refresh it.</p>
+                  </div>
+                  <div class="field" id="wallpaper-history-field">
+                    <span class="field__label">Wallpaper history</span>
+                    <div class="thumbs thumbs--history" id="wallpaper-history"></div>
+                    <p class="field__help">Recent wallpapers — click to restore.</p>
                   </div>
                 </div>
               </section>
@@ -420,13 +403,26 @@
                   </ul>
                 </div>
               </section>
+                </div>
+              </div>
+            </div>
+
+            <footer class="settings-sidebar__foot" id="settings-foot">
+              <button type="button" class="btn btn--primary" id="settings-revert">Revert</button>
+            </footer>
+          </div>
+
+          <div class="settings-layout-page" id="settings-layout-page" aria-hidden="true">
+            <button type="button" class="btn btn--ghost settings-layout-page__back" id="layout-back">← Back</button>
+            <p class="layout-dock__hint">Drag widgets onto the preview grid. Drop them back here to remove.</p>
+            <div class="layout-dock__palette" id="layout-palette"></div>
+            <p class="field__help">Weather needs a one-time location permission from the weather chip. Without the settings button on the page, open settings from this extension’s toolbar icon.</p>
+            <div class="layout-dock__actions settings-layout-page__actions">
+              <button type="button" class="btn btn--ghost" id="layout-reset">Reset</button>
+              <button type="button" class="btn btn--primary" id="layout-done">Done</button>
             </div>
           </div>
         </div>
-
-        <footer class="settings-sidebar__foot" id="settings-foot">
-          <button type="button" class="btn btn--primary" id="settings-revert">Revert</button>
-        </footer>
         </div>
       </aside>
     </div>
@@ -450,7 +446,7 @@
         <div id="setup-step-location" hidden>
           <p class="panel__eyebrow">Weather</p>
           <h1 class="panel__title">Share your location?</h1>
-          <p class="panel__lede">Chrome will ask once so we can show local weather on each new tab. You can change this later in settings.</p>
+          <p class="panel__lede">Chrome will ask once so we can show local weather on each new tab. You can rearrange or remove weather later in Edit layout.</p>
           <div class="setup-actions">
             <button type="button" class="btn btn--primary" id="setup-location-allow">Allow location</button>
             <button type="button" class="btn btn--ghost" id="setup-location-skip">Not now</button>

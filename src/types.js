@@ -2,6 +2,8 @@
  * @typedef {'digital'|'analog'} ClockStyle
  * @typedef {'name'|'icon'|'both'} QuickLinkDisplay
  * @typedef {{title: string, url: string, icon?: string, display?: QuickLinkDisplay}} QuickLink
+ * @typedef {'clock'|'greeting'|'search'|'quicklinks'|'weather'|'settings'|'credit'|'reroll'} WidgetId
+ * @typedef {{url: string, credit: string, link: string, dayKey: string, category: string}} WallpaperPhoto
  *
  * @typedef {Object} Settings
  * @property {string} name
@@ -10,7 +12,9 @@
  * @property {boolean} showGreeting
  * @property {boolean} showSearch
  * @property {boolean} showSearchHint
+ * @property {number} searchHintOpens
  * @property {boolean} showQuickLinks
+ * @property {boolean} alwaysShowQuickLinks
  * @property {boolean} showWeather
  * @property {boolean} showPhotoCredit
  * @property {boolean} showReroll
@@ -29,11 +33,13 @@
  * @property {string} customFontDataUrl
  * @property {string} customFontFormat
  * @property {'web'|'ai'} searchMode
- * @property {{url: string, credit: string, link: string, dayKey: string, category: string}|null} lastUnsplash
- * @property {{url: string, credit: string, link: string, dayKey: string, category: string}|null} lastCustom
+ * @property {WallpaperPhoto|null} lastUnsplash
+ * @property {WallpaperPhoto|null} lastCustom
  * @property {string[]} recentUnsplashUrls
+ * @property {WallpaperPhoto[]} wallpaperHistory
  * @property {boolean} newPhotoOnOpen
  * @property {QuickLink[]} quickLinks
+ * @property {WidgetId[][]} layout
  */
 
 export {};

@@ -6,7 +6,18 @@ import { applyFont, readFontFile } from "./fonts.js";
 import { checkForUpdate } from "./updates.js";
 import { enhanceSelects, syncSelectUi, closeAllMenus, hasOpenMenu, destroySelects } from "./dropdown.js";
 import { STORE_BUILD } from "./flavor.js";
-
+import {
+  DEFAULT_LAYOUT,
+  WALLPAPER_HISTORY_LIMIT,
+  WIDGET_IDS,
+  WIDGET_LABELS,
+  cellAlign,
+  findWidget,
+  normalizeLayout,
+  placeWidget,
+  placedWidgets,
+  removeWidget,
+} from "./layout.js";
 document.body.classList.toggle("flavor-store", STORE_BUILD);
 document.body.classList.toggle("flavor-full", !STORE_BUILD);
 
@@ -28,6 +39,8 @@ const els = {
   weather: document.getElementById("weather"),
   weatherShell: document.getElementById("weather-shell"),
   weatherChip: document.getElementById("weather-chip"),
+  weatherChipLoading: document.getElementById("weather-chip-loading"),
+  weatherChipData: document.getElementById("weather-chip-data"),
   weatherTemp: document.getElementById("weather-temp"),
   weatherCond: document.getElementById("weather-cond"),
   weatherIcon: document.getElementById("weather-icon"),
@@ -46,7 +59,20 @@ const els = {
   photoCredit: document.getElementById("photo-credit"),
   photoCreditLink: document.getElementById("photo-credit-link"),
   wallpaperReroll: document.getElementById("wallpaper-reroll"),
-  topbar: document.getElementById("topbar"),
+  layoutGrid: document.getElementById("layout-grid"),
+  widgetPool: document.getElementById("widget-pool"),
+  settingsHome: document.getElementById("settings-home"),
+  settingsLayoutPage: document.getElementById("settings-layout-page"),
+  settingsMain: document.getElementById("settings-main"),
+  settingsTabs: document.getElementById("settings-tabs"),
+  settingsNavIndicator: document.getElementById("settings-nav-indicator"),
+  settingsTitle: document.getElementById("settings-title"),
+  layoutPalette: document.getElementById("layout-palette"),
+  layoutEdit: document.getElementById("layout-edit"),
+  layoutDone: document.getElementById("layout-done"),
+  layoutReset: document.getElementById("layout-reset"),
+  layoutBack: document.getElementById("layout-back"),
+  wallpaperHistory: document.getElementById("wallpaper-history"),
   searchZone: document.getElementById("search-zone"),
   searchForm: document.getElementById("search-form"),
   searchInput: document.getElementById("search-input"),
@@ -70,19 +96,12 @@ const els = {
   settingsFoot: document.getElementById("settings-foot"),
   aboutVersion: document.getElementById("about-version"),
   settingName: document.getElementById("setting-name"),
-  settingShowClock: document.getElementById("setting-show-clock"),
-  settingShowGreeting: document.getElementById("setting-show-greeting"),
-  settingShowSearch: document.getElementById("setting-show-search"),
   settingShowSearchHint: document.getElementById("setting-show-search-hint"),
-  settingShowQuickLinks: document.getElementById("setting-show-quick-links"),
-  settingShowPhotoCredit: document.getElementById("setting-show-photo-credit"),
-  settingShowReroll: document.getElementById("setting-show-reroll"),
-  settingShowSettingsButton: document.getElementById("setting-show-settings-button"),
   settingShowBackground: document.getElementById("setting-show-background"),
-  settingWeather: document.getElementById("setting-weather"),
   settingClockStyle: document.getElementById("setting-clock-style"),
   setting24h: document.getElementById("setting-24h"),
   settingShowSeconds: document.getElementById("setting-show-seconds"),
+  settingAlwaysShowQuickLinks: document.getElementById("setting-always-show-quick-links"),
   clock24hHelp: document.getElementById("clock-24h-help"),
   quickLinksEditor: document.getElementById("quick-links-editor"),
   quickLinksList: document.getElementById("quick-links-list"),
@@ -125,9 +144,324 @@ let sessionSettingsBackup = null;
 let weatherCloseTimer = null;
 /** @type {WeakMap<HTMLElement, ReturnType<typeof setTimeout>>} */
 const revealTimers = new WeakMap();
+
+/** @type {import('./types.js').WidgetId[][] | null} */
+let draftLayout = null;
+/** @type {HTMLElement[]} */
+let layoutCells = [];
+/** @type {Partial<Record<import('./types.js').WidgetId, HTMLElement>>} */
+const widgetEls = {};
 /** @type {ReturnType<typeof setTimeout> | null} */
 let greetingSwapTimer = null;
 const REVEAL_MS = 420;
+const SEARCH_HINT_MAX_OPENS = 5;
+
+function initLayoutSystem() {
+  layoutCells = [];
+  els.layoutGrid.innerHTML = "";
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement("div");
+    cell.className = "layout-cell";
+    cell.dataset.cell = String(i);
+    const align = cellAlign(i);
+    cell.dataset.alignX = align.horizontal;
+    cell.dataset.alignY = align.vertical;
+    els.layoutGrid.appendChild(cell);
+    layoutCells.push(cell);
+  }
+
+  for (const id of WIDGET_IDS) {
+    const el = document.querySelector(`[data-widget="${id}"]`);
+    if (el instanceof HTMLElement) {
+      widgetEls[id] = el;
+      el.dataset.label = WIDGET_LABELS[id];
+    }
+  }
+}
+
+/**
+ * @param {import('./types.js').WidgetId[][]} layout
+ */
+function showFlagsFromLayout(layout) {
+  const placed = placedWidgets(normalizeLayout(layout));
+  return {
+    showClock: placed.has("clock"),
+    showGreeting: placed.has("greeting"),
+    showSearch: placed.has("search"),
+    showQuickLinks: placed.has("quicklinks"),
+    showWeather: placed.has("weather"),
+    showPhotoCredit: placed.has("credit"),
+    showReroll: placed.has("reroll"),
+    showSettingsButton: placed.has("settings"),
+  };
+}
+
+/**
+ * @param {import('./types.js').WidgetId} id
+ * @param {import('./types.js').Settings} state
+ */
+function widgetEnabled(id, state) {
+  switch (id) {
+    case "credit":
+    case "reroll":
+      return Boolean(state.showBackground);
+    default:
+      return true;
+  }
+}
+
+/**
+ * @param {import('./types.js').WidgetId} id
+ * @param {import('./types.js').Settings} state
+ */
+function widgetVisible(id, state) {
+  const layout = normalizeLayout(draftLayout || state.layout);
+  return placedWidgets(layout).has(id) && widgetEnabled(id, state);
+}
+
+/**
+ * @param {import('./types.js').Settings} state
+ * @param {{editing?: boolean}} [opts]
+ */
+function applyWidgetGrid(state, opts = {}) {
+  const editing = Boolean(opts.editing);
+  const layout = normalizeLayout(editing && draftLayout ? draftLayout : state.layout);
+
+  for (const id of WIDGET_IDS) {
+    const el = widgetEls[id];
+    if (el) els.widgetPool.appendChild(el);
+  }
+
+  layout.forEach((stack, cellIndex) => {
+    const cell = layoutCells[cellIndex];
+    if (!cell) return;
+    for (const id of stack) {
+      const el = widgetEls[id];
+      if (!el) continue;
+      if (!editing && !widgetEnabled(id, state)) continue;
+      cell.appendChild(el);
+    }
+  });
+
+  if (editing) renderLayoutPalette(layout);
+}
+
+function setLayoutPageActive(active) {
+  const page = els.settingsLayoutPage;
+  const home = els.settingsHome;
+  if (page) {
+    page.setAttribute("aria-hidden", active ? "false" : "true");
+    page.toggleAttribute("inert", !active);
+  }
+  if (home) {
+    home.setAttribute("aria-hidden", active ? "true" : "false");
+    home.toggleAttribute("inert", active);
+  }
+
+  const nextTitle = active ? "Edit layout" : "Settings";
+  const title = els.settingsTitle;
+  if (title && title.textContent !== nextTitle) {
+    title.classList.add("is-swapping");
+    window.setTimeout(() => {
+      title.textContent = nextTitle;
+      title.classList.remove("is-swapping");
+    }, 160);
+  } else if (title) {
+    title.textContent = nextTitle;
+  }
+
+  document.body.classList.toggle("settings-layout-open", active);
+
+  if (!active) {
+    const aboutActive =
+      document.querySelector(".settings-nav__btn.is-active")?.dataset.tab === "about";
+    if (els.settingsFoot) els.settingsFoot.hidden = aboutActive;
+    requestAnimationFrame(() => syncSettingsNavIndicator());
+  }
+}
+
+function bindLayoutEditor() {
+  els.layoutEdit?.addEventListener("click", () => {
+    void enterLayoutEdit();
+  });
+  els.layoutDone?.addEventListener("click", () => {
+    void exitLayoutEdit(true);
+  });
+  els.layoutBack?.addEventListener("click", () => {
+    void exitLayoutEdit(false);
+  });
+  els.layoutReset?.addEventListener("click", () => {
+    draftLayout = DEFAULT_LAYOUT.map((cell) => [...cell]);
+    applyLayoutWithState(settings);
+  });
+
+  els.layoutPalette?.addEventListener("dragover", (e) => {
+    if (!draftLayout) return;
+    e.preventDefault();
+    els.layoutPalette.classList.add("is-dragover");
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+  });
+  els.layoutPalette?.addEventListener("dragleave", () => {
+    els.layoutPalette.classList.remove("is-dragover");
+  });
+  els.layoutPalette?.addEventListener("drop", (e) => {
+    if (!draftLayout) return;
+    e.preventDefault();
+    els.layoutPalette.classList.remove("is-dragover");
+    const id = e.dataTransfer?.getData("text/widget") || e.dataTransfer?.getData("text/plain");
+    if (!id || !WIDGET_IDS.includes(/** @type {any} */ (id))) return;
+    draftLayout = removeWidget(draftLayout, /** @type {any} */ (id));
+    applyLayoutWithState(settings);
+  });
+}
+
+async function enterLayoutEdit() {
+  closeForecast();
+  if (!document.body.classList.contains("settings-open")) {
+    openSettings({ skipLayoutGuard: true });
+  }
+  draftLayout = normalizeLayout(settings.layout);
+  document.body.classList.add("layout-editing");
+  setLayoutPageActive(true);
+  wireWidgetDragging(true);
+  applyLayoutWithState(settings);
+}
+
+async function exitLayoutEdit(save) {
+  if (save && draftLayout) {
+    settings = await saveSettings({
+      layout: draftLayout,
+      ...showFlagsFromLayout(draftLayout),
+    });
+  }
+  draftLayout = null;
+  document.body.classList.remove("layout-editing");
+  setLayoutPageActive(false);
+  wireWidgetDragging(false);
+  applyLayoutWithState(settings);
+  updateWeatherVisibility();
+}
+
+/**
+ * @param {import('./types.js').WidgetId[][]} layout
+ */
+function renderLayoutPalette(layout) {
+  if (!els.layoutPalette) return;
+  const used = placedWidgets(layout);
+  els.layoutPalette.innerHTML = "";
+  for (const id of WIDGET_IDS) {
+    if (used.has(id)) continue;
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "layout-chip";
+    chip.draggable = true;
+    chip.dataset.widget = id;
+    chip.textContent = WIDGET_LABELS[id];
+    chip.addEventListener("dragstart", (e) => {
+      e.dataTransfer?.setData("text/widget", id);
+      e.dataTransfer?.setData("text/plain", id);
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+      chip.classList.add("is-dragging");
+    });
+    chip.addEventListener("dragend", () => chip.classList.remove("is-dragging"));
+    els.layoutPalette.appendChild(chip);
+  }
+  if (!els.layoutPalette.childElementCount) {
+    const empty = document.createElement("span");
+    empty.className = "field__help";
+    empty.textContent = "All widgets are on the page — drop one here to remove it.";
+    els.layoutPalette.appendChild(empty);
+  }
+}
+
+/**
+ * @param {boolean} enabled
+ */
+function wireWidgetDragging(enabled) {
+  for (const id of WIDGET_IDS) {
+    const el = widgetEls[id];
+    if (!el) continue;
+    el.draggable = enabled;
+    el.ondragstart = enabled
+      ? (e) => {
+          e.dataTransfer?.setData("text/widget", id);
+          e.dataTransfer?.setData("text/plain", id);
+          if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+          el.classList.add("is-dragging");
+        }
+      : null;
+    el.ondragend = enabled
+      ? () => el.classList.remove("is-dragging")
+      : null;
+  }
+
+  layoutCells.forEach((cell, cellIndex) => {
+    cell.ondragover = enabled
+      ? (e) => {
+          e.preventDefault();
+          cell.classList.add("is-dragover");
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        }
+      : null;
+    cell.ondragleave = enabled
+      ? () => cell.classList.remove("is-dragover")
+      : null;
+    cell.ondrop = enabled
+      ? (e) => {
+          e.preventDefault();
+          cell.classList.remove("is-dragover");
+          const id = e.dataTransfer?.getData("text/widget") || e.dataTransfer?.getData("text/plain");
+          if (!id || !WIDGET_IDS.includes(/** @type {any} */ (id))) return;
+          if (!draftLayout) return;
+          draftLayout = placeWidget(draftLayout, /** @type {any} */ (id), cellIndex);
+          applyLayoutWithState(settings);
+        }
+      : null;
+  });
+}
+
+function renderWallpaperHistory() {
+  if (!els.wallpaperHistory) return;
+  const history = settings.wallpaperHistory || [];
+  const currentUrl =
+    previewPhoto?.url ||
+    (settings.bgSource === "custom" ? settings.lastCustom?.url : settings.lastUnsplash?.url) ||
+    "";
+
+  els.wallpaperHistory.innerHTML = "";
+  if (!history.length) {
+    const empty = document.createElement("p");
+    empty.className = "field__help";
+    empty.textContent = "Reroll or refresh to start building history.";
+    els.wallpaperHistory.appendChild(empty);
+    return;
+  }
+
+  history.forEach((photo) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "thumb";
+    if (photo.url === currentUrl) btn.classList.add("is-active");
+    btn.title = photo.credit || "Restore wallpaper";
+    btn.style.backgroundImage = `url("${photo.url}")`;
+    btn.addEventListener("click", async () => {
+      previewPhoto = photo;
+      const isDataUrl = photo.url.startsWith("data:");
+      const inCustomLibrary = (settings.customImages || []).includes(photo.url);
+      if (isDataUrl || inCustomLibrary || settings.bgSource === "custom") {
+        settings = await saveSettings({
+          lastCustom: photo,
+          wallpaperHistory: pushWallpaperHistory(settings.wallpaperHistory, photo),
+        });
+      } else {
+        settings = await saveSettings(unsplashRememberPatch(photo));
+      }
+      paintBackground(photo, { allowRetry: false, state: settings });
+      renderWallpaperHistory();
+    });
+    els.wallpaperHistory.appendChild(btn);
+  });
+}
 
 async function init() {
   settings = await loadSettings();
@@ -136,6 +470,7 @@ async function init() {
   const searchTab = document.querySelector('.settings-nav__btn[data-tab="search"]');
   if (searchTab) searchTab.textContent = STORE_BUILD ? "Search" : "Search & AI";
   applyFont(settings);
+  initLayoutSystem();
   applyLayout();
   renderClock();
   renderGreeting();
@@ -143,7 +478,8 @@ async function init() {
   renderQuickLinks();
   await applyBackground(false);
   updateWeatherVisibility();
-  if (settings.setupComplete && settings.showWeather) loadWeather();
+  if (settings.setupComplete && widgetVisible("weather", settings)) loadWeather();
+  if (settings.setupComplete) void trackSearchHintOpen();
 
   if (!settings.setupComplete) {
     els.onboarding.hidden = false;
@@ -154,7 +490,7 @@ async function init() {
     focusPrimary();
   }
 
-  clockTimer = window.setInterval(renderClock, 1000);
+  startClockTimer();
   bindEvents();
   enhanceSelects();
   maybeShowUpdate();
@@ -192,7 +528,11 @@ function bindEvents() {
     const granted = await requestLocationAccess();
     els.setupLocationAllow.disabled = false;
     if (granted) {
-      await finishSetup({ showWeather: true });
+      let layout = normalizeLayout(settings.layout);
+      if (!placedWidgets(layout).has("weather")) {
+        layout = placeWidget(layout, "weather", 0);
+      }
+      await finishSetup({ layout, ...showFlagsFromLayout(layout) });
       loadWeather();
       return;
     }
@@ -201,7 +541,9 @@ function bindEvents() {
   });
 
   els.setupLocationSkip.addEventListener("click", async () => {
-    await finishSetup({ showWeather: false });
+    let layout = normalizeLayout(settings.layout);
+    layout = removeWidget(layout, "weather");
+    await finishSetup({ layout, ...showFlagsFromLayout(layout) });
   });
 
   async function finishSetup(patch = {}) {
@@ -213,7 +555,13 @@ function bindEvents() {
     focusPrimary();
   }
 
-  els.settingsOpen.addEventListener("click", openSettings);
+  els.settingsOpen.addEventListener("click", (e) => {
+    if (document.body.classList.contains("layout-editing")) {
+      e.preventDefault();
+      return;
+    }
+    openSettings();
+  });
   els.settingsClose.addEventListener("click", closeSettings);
 
   els.settingsRevert.addEventListener("click", saveSettingsFromForm);
@@ -221,20 +569,23 @@ function bindEvents() {
   els.settings.addEventListener("input", schedulePreview);
   els.settings.addEventListener("change", schedulePreview);
   bindSettingHighlights();
+  bindLayoutEditor();
 
-  document.getElementById("settings-tabs").addEventListener("click", (e) => {
+  els.settingsTabs?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-tab]");
-    if (!btn) return;
+    if (!(btn instanceof HTMLElement)) return;
     const tab = btn.dataset.tab;
-    document.querySelectorAll(".settings-nav__btn").forEach((b) => {
-      b.classList.toggle("is-active", b === btn);
-    });
-    document.querySelectorAll(".tab-panel").forEach((p) => {
-      p.classList.toggle("is-active", p.dataset.panel === tab);
-    });
-    document.body.classList.toggle("settings-tab-links", tab === "links");
-    els.settingsFoot.hidden = tab === "about";
-    btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    if (!tab) return;
+    switchSettingsTab(tab, btn);
+  });
+
+  els.settingsTabs?.addEventListener("scroll", () => {
+    syncSettingsNavIndicator();
+  });
+
+  window.addEventListener("resize", () => {
+    if (!document.body.classList.contains("settings-open")) return;
+    syncSettingsNavIndicator();
   });
 
   els.settingBgSource.addEventListener("change", () => {
@@ -245,7 +596,6 @@ function bindEvents() {
     if (!els.settingFontGoogle.value.trim()) return;
     selectFontPreset("custom-google");
   });
-  els.settingShowQuickLinks.addEventListener("change", syncQuickLinksEditor);
   els.settingShowBackground.addEventListener("change", syncBackgroundOptions);
   els.settingBgCategory.addEventListener("change", () => {
     previewPhoto = null;
@@ -277,7 +627,11 @@ function bindEvents() {
     paintBackground(photo, { allowRetry: false, state: readFormDraft() });
   });
 
-  els.wallpaperReroll?.addEventListener("click", () => {
+  els.wallpaperReroll?.addEventListener("click", (e) => {
+    if (document.body.classList.contains("layout-editing")) {
+      e.preventDefault();
+      return;
+    }
     void rerollWallpaper();
   });
 
@@ -319,6 +673,7 @@ function bindEvents() {
 
   els.searchForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (document.body.classList.contains("layout-editing")) return;
     const query = els.searchInput.value.trim();
     if (!query) return;
     if (STORE_BUILD) {
@@ -336,19 +691,50 @@ function bindEvents() {
     dismissTopLayer();
   });
 
-  els.weatherChip.addEventListener("click", async () => {
+  els.weather.addEventListener("click", async (e) => {
+    if (document.body.classList.contains("layout-editing")) return;
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest("#forecast-close")) return;
+    if (els.weather.classList.contains("is-expanded")) return;
+    if (els.weather.classList.contains("weather--chip-loading")) return;
     if (els.weather.classList.contains("weather--needs-location")) {
       const granted = await requestLocationAccess();
-      if (granted) loadWeather();
+      if (granted) {
+        showWeatherChipLoading();
+        weatherLoadPromise = null;
+        void loadWeather();
+      }
       return;
     }
-    if (els.weather.classList.contains("is-expanded")) return;
-    openForecast();
+    if (els.weather.classList.contains("weather--error")) {
+      showWeatherChipLoading();
+      weatherLoadPromise = null;
+      void loadWeather();
+      return;
+    }
+    void openForecast();
   });
 
   els.forecastClose.addEventListener("click", (e) => {
     e.stopPropagation();
     closeForecast();
+  });
+
+  els.weather.addEventListener("mouseenter", () => {
+    if (weatherCloseTimer) {
+      clearTimeout(weatherCloseTimer);
+      weatherCloseTimer = null;
+    }
+  });
+
+  els.weather.addEventListener("mouseleave", () => {
+    if (!els.weather.classList.contains("is-expanded")) return;
+    if (weatherCloseTimer) clearTimeout(weatherCloseTimer);
+    weatherCloseTimer = window.setTimeout(() => {
+      weatherCloseTimer = null;
+      closeForecast();
+    }, 220);
   });
 
   document.addEventListener("pointerdown", (e) => {
@@ -367,6 +753,95 @@ function bindEvents() {
 
 const SETTINGS_ANIM_MS = 520;
 const WEATHER_ANIM_MS = 520;
+const SETTINGS_TAB_ANIM_MS = 420;
+
+/** @type {readonly string[]} */
+const SETTINGS_TAB_ORDER = [
+  "general",
+  "links",
+  "background",
+  "search",
+  "fonts",
+  "about",
+];
+
+/** @type {number | null} */
+let settingsTabAnimTimer = null;
+
+/**
+ * @param {HTMLElement | null} [activeBtn]
+ */
+function syncSettingsNavIndicator(activeBtn) {
+  const nav = els.settingsTabs;
+  const indicator = els.settingsNavIndicator;
+  if (!nav || !indicator) return;
+
+  const btn =
+    activeBtn instanceof HTMLElement
+      ? activeBtn
+      : nav.querySelector(".settings-nav__btn.is-active");
+  if (!(btn instanceof HTMLElement)) {
+    indicator.classList.remove("is-visible");
+    return;
+  }
+
+  const left = btn.offsetLeft;
+  indicator.style.width = `${btn.offsetWidth}px`;
+  indicator.style.height = `${btn.offsetHeight}px`;
+  indicator.style.transform = `translateX(${left}px)`;
+  indicator.classList.add("is-visible");
+}
+
+/**
+ * @param {string} tab
+ * @param {HTMLElement} btn
+ */
+function switchSettingsTab(tab, btn) {
+  const nextPanel = document.querySelector(`.tab-panel[data-panel="${tab}"]`);
+  const currentPanel = document.querySelector(".tab-panel.is-active");
+  const currentBtn = document.querySelector(".settings-nav__btn.is-active");
+  if (!(nextPanel instanceof HTMLElement) || currentBtn === btn) return;
+
+  if (settingsTabAnimTimer) {
+    clearTimeout(settingsTabAnimTimer);
+    settingsTabAnimTimer = null;
+    document.querySelectorAll(".tab-panel.is-exiting").forEach((panel) => {
+      panel.classList.remove("is-exiting", "is-active");
+    });
+  }
+
+  const fromIdx = SETTINGS_TAB_ORDER.indexOf(currentPanel?.dataset.panel || "");
+  const toIdx = SETTINGS_TAB_ORDER.indexOf(tab);
+  const dir = toIdx >= fromIdx ? 1 : -1;
+  const shift = `${dir * 16}px`;
+
+  document.querySelectorAll(".settings-nav__btn").forEach((b) => {
+    b.classList.toggle("is-active", b === btn);
+  });
+  syncSettingsNavIndicator(btn);
+
+  nextPanel.classList.remove("is-exiting");
+
+  if (currentPanel instanceof HTMLElement && currentPanel !== nextPanel) {
+    currentPanel.style.setProperty("--settings-tab-shift", shift);
+    nextPanel.style.setProperty("--settings-tab-shift", shift);
+    nextPanel.classList.remove("is-active");
+    void nextPanel.offsetWidth;
+    nextPanel.classList.add("is-active");
+    currentPanel.classList.remove("is-active");
+    currentPanel.classList.add("is-exiting");
+    settingsTabAnimTimer = window.setTimeout(() => {
+      currentPanel.classList.remove("is-exiting");
+      settingsTabAnimTimer = null;
+    }, SETTINGS_TAB_ANIM_MS);
+  } else {
+    nextPanel.classList.add("is-active");
+  }
+
+    document.body.classList.toggle("settings-tab-links", tab === "links");
+  els.settingsFoot.hidden = tab === "about" || document.body.classList.contains("settings-layout-open");
+  btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+}
 
 /**
  * Close the topmost open UI layer: menus → weather → settings.
@@ -378,6 +853,10 @@ function dismissTopLayer() {
   }
   if (els.weather.classList.contains("is-expanded")) {
     closeForecast();
+    return;
+  }
+  if (document.body.classList.contains("layout-editing")) {
+    void exitLayoutEdit(false);
     return;
   }
   if (document.body.classList.contains("settings-open")) {
@@ -403,7 +882,21 @@ function bgPickOpts(forceNew, previousUrl) {
 function unsplashRememberPatch(photo) {
   const recent = [photo.url, ...(settings.recentUnsplashUrls || [])];
   const recentUnsplashUrls = [...new Set(recent)].slice(0, RECENT_UNSPLASH_LIMIT);
-  return { lastUnsplash: photo, recentUnsplashUrls };
+  return {
+    lastUnsplash: photo,
+    recentUnsplashUrls,
+    wallpaperHistory: pushWallpaperHistory(settings.wallpaperHistory, photo),
+  };
+}
+
+/**
+ * @param {import('./types.js').WallpaperPhoto[] | undefined} history
+ * @param {import('./types.js').WallpaperPhoto} photo
+ */
+function pushWallpaperHistory(history, photo) {
+  const prev = Array.isArray(history) ? history : [];
+  const next = [photo, ...prev.filter((item) => item.url !== photo.url)];
+  return next.slice(0, WALLPAPER_HISTORY_LIMIT);
 }
 
 async function rerollWallpaper() {
@@ -425,8 +918,12 @@ async function rerollWallpaper() {
     });
     if (!photo) return;
     previewPhoto = photo;
-    settings = await saveSettings({ lastCustom: photo });
+    settings = await saveSettings({
+      lastCustom: photo,
+      wallpaperHistory: pushWallpaperHistory(settings.wallpaperHistory, photo),
+    });
     paintBackground(photo);
+    renderWallpaperHistory();
     return;
   }
 
@@ -438,23 +935,48 @@ async function rerollWallpaper() {
   previewPhoto = photo;
   settings = await saveSettings(unsplashRememberPatch(photo));
   paintBackground(photo);
+  renderWallpaperHistory();
 }
 
-function openSettings() {
+function openSettings(opts = {}) {
+  if (!opts.skipLayoutGuard && document.body.classList.contains("layout-editing")) return;
   closeForecast();
   sessionSettingsBackup = JSON.parse(JSON.stringify(settings));
   populateSettingsForm();
   previewPhoto = null;
   const activeTab = document.querySelector(".settings-nav__btn.is-active")?.dataset.tab || "general";
   document.body.classList.toggle("settings-tab-links", activeTab === "links");
+  syncSettingsSidebarSide();
   els.settings.hidden = false;
   els.settings.setAttribute("aria-hidden", "false");
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       document.body.classList.add("settings-open");
+      syncSettingsNavIndicator();
     });
   });
   applyPreviewFromForm();
+  renderWallpaperHistory();
+}
+
+/**
+ * Open settings beside the settings icon: left column → left panel, else right.
+ * @param {import('./types.js').Settings} [state]
+ */
+function settingsSidebarSide(state = settings) {
+  const layout = normalizeLayout(draftLayout || state.layout);
+  const found = findWidget(layout, "settings");
+  if (!found) return "right";
+  return found.cell % 3 === 0 ? "left" : "right";
+}
+
+/**
+ * @param {import('./types.js').Settings} [state]
+ */
+function syncSettingsSidebarSide(state = settings) {
+  const left = settingsSidebarSide(state) === "left";
+  document.body.classList.toggle("settings-side-left", left);
+  document.body.classList.toggle("settings-side-right", !left);
 }
 
 function finishCloseSettings() {
@@ -463,12 +985,21 @@ function finishCloseSettings() {
 }
 
 function closeSettings() {
+  if (draftLayout) {
+    void exitLayoutEdit(false).then(() => closeSettings());
+    return;
+  }
+
   if (!document.body.classList.contains("settings-open")) {
     finishCloseSettings();
     return;
   }
 
-  document.body.classList.remove("settings-open", "settings-tab-links");
+  document.body.classList.remove(
+    "settings-open",
+    "settings-tab-links",
+    "settings-layout-open",
+  );
   previewPhoto = null;
   clearSettingHighlight();
   closeAllMenus();
@@ -493,19 +1024,14 @@ function closeSettings() {
 
 function populateSettingsForm() {
   els.settingName.value = settings.name || "";
-  els.settingShowClock.checked = settings.showClock;
-  els.settingShowGreeting.checked = settings.showGreeting;
-  els.settingShowSearch.checked = settings.showSearch;
   els.settingShowSearchHint.checked = settings.showSearchHint;
-  els.settingShowQuickLinks.checked = settings.showQuickLinks;
-  els.settingShowPhotoCredit.checked = settings.showPhotoCredit;
-  els.settingShowReroll.checked = settings.showReroll !== false;
-  els.settingShowSettingsButton.checked = settings.showSettingsButton;
   els.settingShowBackground.checked = settings.showBackground;
-  els.settingWeather.checked = settings.showWeather;
   els.settingClockStyle.value = settings.clockStyle || "digital";
   els.setting24h.checked = settings.use24h;
   els.settingShowSeconds.checked = settings.showSeconds;
+  if (els.settingAlwaysShowQuickLinks) {
+    els.settingAlwaysShowQuickLinks.checked = Boolean(settings.alwaysShowQuickLinks);
+  }
   els.settingBgNewOnOpen.checked = settings.newPhotoOnOpen;
   els.settingBgSource.value = settings.bgSource;
   els.settingBgCategory.value = settings.bgCategory;
@@ -530,12 +1056,12 @@ function populateSettingsForm() {
   syncSelectUi(els.settingFontPreset);
   syncBgSourceUi();
   syncClockFields();
-  syncQuickLinksEditor();
   syncBackgroundOptions();
   renderThumbs();
+  renderWallpaperHistory();
   renderQuickLinkRows();
   const activeTab = document.querySelector(".settings-nav__btn.is-active")?.dataset.tab;
-  els.settingsFoot.hidden = activeTab === "about";
+  els.settingsFoot.hidden = activeTab === "about" || document.body.classList.contains("settings-layout-open");
 }
 
 function revertPreview() {
@@ -567,18 +1093,15 @@ function readFormDraft() {
   return {
     ...settings,
     name: els.settingName.value.trim() || settings.name,
-    showClock: els.settingShowClock.checked,
-    showGreeting: els.settingShowGreeting.checked,
-    showSearch: els.settingShowSearch.checked,
     showSearchHint: els.settingShowSearchHint.checked,
-    showQuickLinks: els.settingShowQuickLinks.checked,
-    showPhotoCredit: els.settingShowPhotoCredit.checked,
-    showReroll: els.settingShowReroll.checked,
-    showSettingsButton: els.settingShowSettingsButton.checked,
+    searchHintOpens:
+      els.settingShowSearchHint.checked && !settings.showSearchHint
+        ? 0
+        : settings.searchHintOpens || 0,
     showBackground: els.settingShowBackground.checked,
-    showWeather: els.settingWeather.checked,
     use24h: els.setting24h.checked,
     showSeconds: els.settingShowSeconds.checked,
+    alwaysShowQuickLinks: Boolean(els.settingAlwaysShowQuickLinks?.checked),
     clockStyle: /** @type {'digital'|'analog'} */ (els.settingClockStyle.value),
     quickLinks: normalizeQuickLinks(draftQuickLinks),
     newPhotoOnOpen: els.settingBgNewOnOpen.checked,
@@ -779,28 +1302,33 @@ function clearSettingHighlight() {
  * @param {import('./types.js').Settings} state
  */
 function applyLayoutWithState(state) {
-  setRevealed(els.clockWrap, state.showClock);
-  setRevealed(els.greeting, state.showGreeting);
-  setRevealed(els.searchZone, state.showSearch);
-  setRevealed(els.settingsOpen, state.showSettingsButton);
-  setRevealed(els.wallpaperReroll, Boolean(state.showReroll && state.showBackground));
-
-  const showTopbar = state.showWeather || state.showSettingsButton;
-  els.topbar.hidden = !showTopbar;
+  const editing = Boolean(draftLayout);
+  applyWidgetGrid(state, { editing });
+  setRevealed(els.clockWrap, widgetVisible("clock", state));
+  setRevealed(els.greeting, widgetVisible("greeting", state));
+  setRevealed(els.searchZone, widgetVisible("search", state));
+  setRevealed(els.settingsOpen, widgetVisible("settings", state));
+  setRevealed(els.wallpaperReroll, widgetVisible("reroll", state));
+  if (editing) {
+    setRevealed(els.weather, widgetVisible("weather", state));
+    setRevealed(els.photoCredit, widgetVisible("credit", state));
+  }
 
   document.body.classList.toggle(
     "page-minimal",
-    !state.showClock &&
-      !state.showGreeting &&
-      !state.showSearch &&
-      !(state.showWeather || state.showSettingsButton)
+    !widgetVisible("clock", state) &&
+      !widgetVisible("greeting", state) &&
+      !widgetVisible("search", state) &&
+      !widgetVisible("weather", state) &&
+      !widgetVisible("settings", state)
   );
   renderQuickLinksWithState(state);
+  if (!draftLayout) renderWallpaperHistory();
 }
 
 function focusPrimary() {
   if (!settings.setupComplete || !els.onboarding.hidden) return;
-  if (settings.showSearch) {
+  if (widgetVisible("search", settings)) {
     els.searchInput.focus();
   }
 }
@@ -848,10 +1376,6 @@ function syncClockFields() {
       ? "24-hour format applies to the digital clock."
       : "Applies to the digital clock.";
   }
-}
-
-function syncQuickLinksEditor() {
-  els.quickLinksEditor.hidden = !els.settingShowQuickLinks.checked;
 }
 
 function renderQuickLinkRows() {
@@ -953,7 +1477,12 @@ function renderQuickLinks() {
  * @param {import('./types.js').Settings} state
  */
 function renderQuickLinksWithState(state) {
-  const links = state.showQuickLinks && state.showSearch ? state.quickLinks || [] : [];
+  const show = widgetVisible("quicklinks", state);
+  const links = show ? state.quickLinks || [] : [];
+  document.body.classList.toggle(
+    "quick-links-always-visible",
+    Boolean(state.alwaysShowQuickLinks) && show && links.some((link) => normalizeUrl(link.url)),
+  );
   if (!links.length) {
     setRevealed(els.quickLinksZone, false);
     els.quickLinks.innerHTML = "";
@@ -1081,11 +1610,25 @@ function renderClock() {
   renderClockWithState(settings);
 }
 
+function startClockTimer() {
+  if (clockTimer) {
+    window.clearTimeout(clockTimer);
+    window.clearInterval(clockTimer);
+    clockTimer = 0;
+  }
+  renderClock();
+  const delay = Math.max(16, 1000 - (Date.now() % 1000));
+  clockTimer = window.setTimeout(() => {
+    renderClock();
+    clockTimer = window.setInterval(renderClock, 1000);
+  }, delay);
+}
+
 /**
  * @param {import('./types.js').Settings} state
  */
 function renderClockWithState(state) {
-  if (!state.showClock && els.clockWrap.hidden) return;
+  if (!widgetVisible("clock", state) && els.clockWrap.hidden) return;
   const now = new Date();
   const analog = state.clockStyle === "analog";
 
@@ -1101,7 +1644,8 @@ function renderClockWithState(state) {
     const seconds = now.getSeconds();
     const hourAngle = hours * 30 + minutes * 0.5;
     const minuteAngle = minutes * 6 + seconds * 0.1;
-    const secondAngle = seconds * 6;
+    // Keep angle continuous across the minute so the hand never rewinds
+    const secondAngle = (minutes * 60 + seconds) * 6;
     els.analogHour.style.transform = `rotate(${hourAngle}deg)`;
     els.analogMinute.style.transform = `rotate(${minuteAngle}deg)`;
     els.analogSecond.style.transform = `rotate(${secondAngle}deg)`;
@@ -1147,7 +1691,7 @@ function renderGreeting() {
  * @param {import('./types.js').Settings} state
  */
 function renderGreetingWithState(state) {
-  if (!state.showGreeting && els.greeting.hidden) return;
+  if (!widgetVisible("greeting", state) && els.greeting.hidden) return;
   const hour = new Date().getHours();
   let part = "evening";
   if (hour < 12) part = "morning";
@@ -1176,6 +1720,28 @@ function setGreetingText(next) {
   }, 180);
 }
 
+/**
+ * @param {import('./types.js').Settings} state
+ */
+function searchHintVisible(state) {
+  return Boolean(
+    state.showSearchHint &&
+      (state.searchHintOpens || 0) < SEARCH_HINT_MAX_OPENS &&
+      widgetVisible("search", state),
+  );
+}
+
+async function trackSearchHintOpen() {
+  if (!settings.setupComplete || !settings.showSearchHint) return;
+  const opens = Number(settings.searchHintOpens) || 0;
+  if (opens >= SEARCH_HINT_MAX_OPENS) {
+    settings = await saveSettings({ showSearchHint: false });
+    renderSearchChrome();
+    return;
+  }
+  settings = await saveSettings({ searchHintOpens: opens + 1 });
+}
+
 function renderSearchChrome() {
   renderSearchChromeWithState(settings);
 }
@@ -1187,8 +1753,9 @@ function renderSearchChromeWithState(state) {
   if (STORE_BUILD) {
     els.searchLeading.innerHTML = storeSearchIconHtml();
     els.searchInput.placeholder = "Search";
-    setRevealed(els.searchHint, Boolean(state.showSearch && state.showSearchHint));
-    if (state.showSearch && state.showSearchHint) {
+    const showHint = searchHintVisible(state);
+    setRevealed(els.searchHint, showHint);
+    if (showHint) {
       els.searchHint.textContent = "Press Enter to search";
     }
     return;
@@ -1204,7 +1771,7 @@ function renderSearchChromeWithState(state) {
     state.searchEngine,
     state.aiProvider
   );
-  const showHint = Boolean(state.showSearch && state.showSearchHint);
+  const showHint = searchHintVisible(state);
   setRevealed(els.searchHint, showHint);
   if (!showHint) return;
   const aiName =
@@ -1240,7 +1807,10 @@ async function applyBackground(fromSettings) {
       return;
     }
     if (!keepCached || fromSettings) {
-      settings = await saveSettings({ lastCustom: photo });
+      settings = await saveSettings({
+        lastCustom: photo,
+        wallpaperHistory: pushWallpaperHistory(settings.wallpaperHistory, photo),
+      });
     }
     paintBackground(photo);
     return;
@@ -1283,7 +1853,7 @@ function paintBackground(photo, { allowRetry = true, state = settings, tried = n
   img.onload = () => {
     els.bgImage.classList.remove("is-fallback");
     els.bgImage.style.backgroundImage = `url("${photo.url}")`;
-    if (photo.credit && state.showPhotoCredit) {
+    if (photo.credit && widgetVisible("credit", state)) {
       els.photoCreditLink.textContent = photo.credit;
       els.photoCreditLink.href = photo.link || "#";
       setRevealed(els.photoCredit, true);
@@ -1367,6 +1937,11 @@ function bindDropzone(zone, onFiles) {
   });
 }
 
+/** @type {Promise<void> | null} */
+let weatherLoadPromise = null;
+/** @type {number | null} */
+let weatherCollapsedWidth = null;
+
 function updateWeatherVisibility() {
   updateWeatherVisibilityWithState(settings);
 }
@@ -1375,16 +1950,33 @@ function updateWeatherVisibility() {
  * @param {import('./types.js').Settings} state
  */
 function updateWeatherVisibilityWithState(state) {
-  if (!state.showWeather) {
+  const show = widgetVisible("weather", state);
+  if (!show) {
     closeForecast();
-    els.weather.classList.remove("weather--needs-location", "is-expanded", "is-loading", "is-ready");
+    weatherLoadPromise = null;
+    els.weather.classList.remove(
+      "weather--needs-location",
+      "weather--chip-loading",
+      "weather--ready",
+      "weather--error",
+      "is-expanded",
+      "is-loading",
+      "is-ready",
+    );
+    els.weatherChip?.removeAttribute("aria-busy");
     setRevealed(els.weather, false);
     return;
   }
 
-  const visible =
-    els.weather.classList.contains("is-shown") && !els.weather.classList.contains("is-hiding");
-  if (!visible) loadWeather();
+  setRevealed(els.weather, true);
+  if (
+    els.weather.classList.contains("weather--ready") ||
+    els.weather.classList.contains("weather--needs-location")
+  ) {
+    return;
+  }
+  showWeatherChipLoading();
+  void loadWeather();
 }
 
 async function maybeShowUpdate() {
@@ -1405,70 +1997,135 @@ async function maybeShowUpdate() {
 }
 
 async function loadWeather() {
-  try {
-    const weather = await fetchWeather();
-    if (!weather || !settings.showWeather) return;
+  if (weatherLoadPromise) return weatherLoadPromise;
 
-    if (weather.needsLocation) {
-      showWeatherChip(weather, { needsLocation: true });
-      return;
+  weatherLoadPromise = (async () => {
+    if (!widgetVisible("weather", settings)) return;
+    if (
+      !els.weather.classList.contains("weather--ready") &&
+      !els.weather.classList.contains("weather--needs-location")
+    ) {
+      showWeatherChipLoading();
     }
 
-    await chrome.storage.local.set({ lastWeather: weather });
-    showWeatherChip(weather);
-  } catch {
-    const cached = await chrome.storage.local.get("lastWeather");
-    if (cached.lastWeather && settings.showWeather) {
-      showWeatherChip(cached.lastWeather, { cached: true });
-      return;
+    try {
+      const weather = await fetchWeather();
+      if (!weather || !widgetVisible("weather", settings)) return;
+
+      if (weather.needsLocation) {
+        showWeatherChip(weather, { needsLocation: true });
+        return;
+      }
+
+      await chrome.storage.local.set({ lastWeather: weather });
+      showWeatherChip(weather);
+    } catch {
+      if (!widgetVisible("weather", settings)) return;
+      const cached = await chrome.storage.local.get("lastWeather");
+      if (cached.lastWeather) {
+        showWeatherChip(cached.lastWeather, { cached: true });
+        return;
+      }
+      showWeatherChip(
+        {
+          temp: 0,
+          label: "Unavailable",
+          iconHtml: "",
+          feelsLike: undefined,
+          humidity: undefined,
+          wind: undefined,
+        },
+        { error: true },
+      );
     }
-    els.weather.classList.remove("weather--needs-location");
-    setRevealed(els.weather, false);
-  }
+  })().finally(() => {
+    weatherLoadPromise = null;
+  });
+
+  return weatherLoadPromise;
+}
+
+function showWeatherChipLoading() {
+  if (els.weather.classList.contains("is-expanded")) return;
+
+  els.weather.classList.add("weather--chip-loading", "is-settled");
+  els.weather.classList.remove("weather--needs-location", "weather--ready", "weather--error");
+  els.weatherChip.title = "Loading weather";
+  els.weatherChip.setAttribute("aria-label", "Loading weather");
+  els.weatherChip.setAttribute("aria-busy", "true");
+  setRevealed(els.weather, true);
+  requestAnimationFrame(() => settleWeatherChip());
 }
 
 /**
- * @param {{temp: number, label: string, iconHtml: string}} weather
- * @param {{needsLocation?: boolean, cached?: boolean}} [opts]
+ * @param {{
+ *   temp: number,
+ *   label: string,
+ *   iconHtml: string,
+ *   feelsLike?: number,
+ *   humidity?: number,
+ *   wind?: number,
+ * }} weather
+ * @param {{needsLocation?: boolean, cached?: boolean, error?: boolean}} [opts]
  */
 function showWeatherChip(weather, opts = {}) {
   if (!els.weather.classList.contains("is-expanded")) {
     els.weather.classList.add("is-settled");
   }
 
+  const revealContent = () => {
+    els.weather.classList.remove("weather--chip-loading");
+    els.weatherChip.removeAttribute("aria-busy");
+    if (!els.weather.classList.contains("is-expanded")) {
+      requestAnimationFrame(() => animateSettleWeatherChip());
+    }
+  };
+
   if (opts.needsLocation) {
     els.weatherTemp.textContent = "";
     els.weatherCond.textContent = weather.label;
     els.weatherIcon.innerHTML = weather.iconHtml;
     els.weather.classList.add("weather--needs-location");
+    els.weather.classList.remove("weather--ready", "weather--error");
     els.weatherChip.title = "Click to allow location access for weather";
     els.weatherChip.setAttribute("aria-label", "Enable location for weather");
     setRevealed(els.weather, true);
-    requestAnimationFrame(() => settleWeatherChip());
+    revealContent();
+    return;
+  }
+
+  if (opts.error) {
+    els.weatherTemp.textContent = "";
+    els.weatherCond.textContent = weather.label || "Unavailable";
+    els.weatherIcon.innerHTML = weather.iconHtml || "";
+    els.weather.classList.remove("weather--needs-location");
+    els.weather.classList.add("weather--ready", "weather--error");
+    els.weatherChip.title = "Weather unavailable — click to retry";
+    els.weatherChip.setAttribute("aria-label", "Weather unavailable, click to retry");
+    setRevealed(els.weather, true);
+    revealContent();
     return;
   }
 
   els.weatherTemp.textContent = `${weather.temp}°`;
   els.weatherCond.textContent = opts.cached ? `${weather.label} · offline` : weather.label;
   els.weatherIcon.innerHTML = weather.iconHtml;
-  els.weather.classList.remove("weather--needs-location");
+  els.weather.classList.remove("weather--needs-location", "weather--error");
+  els.weather.classList.add("weather--ready");
   els.weatherChip.title = opts.cached ? "Showing last known weather (offline)" : "Open forecast";
   els.weatherChip.setAttribute("aria-label", "Open weather forecast");
   setRevealed(els.weather, true);
-  requestAnimationFrame(() => settleWeatherChip());
+  revealContent();
 }
 
-/** @type {number | null} */
-let weatherCollapsedWidth = null;
-
 function weatherExpandedWidthPx() {
-  const raw = getComputedStyle(els.weather).getPropertyValue("--weather-width").trim();
+  const raw = getComputedStyle(els.weather).getPropertyValue("--weather-expanded-width").trim();
   const probe = document.createElement("div");
   probe.style.cssText = `position:absolute;visibility:hidden;width:${raw}`;
   document.body.appendChild(probe);
   const width = probe.getBoundingClientRect().width;
   probe.remove();
-  return Math.round(width) || Math.min(304, window.innerWidth - 40);
+  return Math.round(width) || Math.min(352, window.innerWidth - 40);
 }
 
 function lockWeatherShellWidth(px) {
@@ -1480,14 +2137,17 @@ function clearWeatherShellWidth() {
 }
 
 function measureWeatherChipWidth() {
-  return Math.max(
-    1,
-    Math.round(els.weatherChip.scrollWidth) ||
-      Math.round(els.weatherChip.getBoundingClientRect().width),
-  );
+  const chip = els.weatherChip;
+  if (!chip) return 1;
+  const visible = els.weather.classList.contains("weather--chip-loading")
+    ? els.weatherChipLoading
+    : els.weatherChipData;
+  const measured = visible
+    ? Math.round(visible.scrollWidth + 24)
+    : Math.round(chip.scrollWidth);
+  return Math.max(1, measured || Math.round(chip.getBoundingClientRect().width) || Math.round(chip.scrollWidth));
 }
 
-/** Lock shell to chip content width and hide body from layout. */
 function settleWeatherChip() {
   if (els.weather.classList.contains("is-expanded")) return;
   els.weather.classList.add("is-settled");
@@ -1497,9 +2157,29 @@ function settleWeatherChip() {
   const width = measureWeatherChipWidth();
   weatherCollapsedWidth = width;
   lockWeatherShellWidth(width);
-  // Force reflow so the next frame can animate expand/collapse again
   void els.weatherShell.offsetWidth;
   els.weatherShell.style.transition = prevTransition;
+}
+
+function animateSettleWeatherChip() {
+  if (els.weather.classList.contains("is-expanded")) return;
+  els.weather.classList.add("is-settled");
+  const from =
+    Math.round(els.weatherShell.getBoundingClientRect().width) ||
+    weatherCollapsedWidth ||
+    measureWeatherChipWidth();
+  lockWeatherShellWidth(from);
+  void els.weatherShell.offsetWidth;
+
+  const prevTransition = els.weatherShell.style.transition;
+  els.weatherShell.style.transition = "none";
+  clearWeatherShellWidth();
+  const to = measureWeatherChipWidth();
+  lockWeatherShellWidth(from);
+  void els.weatherShell.offsetWidth;
+  els.weatherShell.style.transition = prevTransition || "";
+  weatherCollapsedWidth = to;
+  lockWeatherShellWidth(to);
 }
 
 function weatherCollapsedWidthPx() {
@@ -1508,12 +2188,16 @@ function weatherCollapsedWidthPx() {
 }
 
 async function openForecast() {
+  if (!widgetVisible("weather", settings)) return;
+  if (document.body.classList.contains("layout-editing")) return;
+  if (els.weather.classList.contains("weather--needs-location")) return;
+  if (els.weather.classList.contains("is-expanded")) return;
+
   if (weatherCloseTimer) {
     clearTimeout(weatherCloseTimer);
     weatherCloseTimer = null;
   }
 
-  // Body must participate in layout for the expand morph
   els.weather.classList.remove("is-settled");
   weatherCollapsedWidth = weatherCollapsedWidthPx();
   lockWeatherShellWidth(weatherCollapsedWidth);
@@ -1529,7 +2213,7 @@ async function openForecast() {
   els.forecastNowTemp.textContent = "";
   els.forecastNowLabel.textContent = "";
   els.forecastNowIcon.innerHTML = "";
-  els.forecastStats.innerHTML = "";
+  if (els.forecastStats) els.forecastStats.innerHTML = "";
   els.forecastHourly.innerHTML = "";
   els.forecastDaily.innerHTML = "";
 
@@ -1581,6 +2265,7 @@ function closeForecast() {
   els.weatherChip.setAttribute("aria-expanded", "false");
   els.weatherBody.setAttribute("aria-hidden", "true");
   els.forecastClose.tabIndex = -1;
+  els.forecastClose.hidden = true;
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -1589,22 +2274,16 @@ function closeForecast() {
     });
   });
 
-  if (weatherCloseTimer) clearTimeout(weatherCloseTimer);
-  weatherCloseTimer = window.setTimeout(() => {
-    weatherCloseTimer = null;
-    if (!els.weather.classList.contains("is-expanded")) {
-      els.weatherContent.hidden = true;
-      els.forecastClose.hidden = true;
-      els.forecastNowIcon.innerHTML = "";
-      els.forecastNowTemp.textContent = "";
-      els.forecastNowLabel.textContent = "";
-      els.forecastStats.innerHTML = "";
-      els.forecastHourly.innerHTML = "";
-      els.forecastDaily.innerHTML = "";
-      // Keep the narrow width from the close animation — clearing it
-      // let forecast content inflate max-content again.
-      settleWeatherChip();
-    }
+  window.setTimeout(() => {
+    if (els.weather.classList.contains("is-expanded")) return;
+    els.weatherContent.hidden = true;
+    els.forecastNowIcon.innerHTML = "";
+    els.forecastNowTemp.textContent = "";
+    els.forecastNowLabel.textContent = "";
+    if (els.forecastStats) els.forecastStats.innerHTML = "";
+    els.forecastHourly.innerHTML = "";
+    els.forecastDaily.innerHTML = "";
+    settleWeatherChip();
   }, WEATHER_ANIM_MS);
 }
 
@@ -1621,11 +2300,13 @@ function renderForecast(data, opts = {}) {
   els.forecastNowTemp.textContent = `${current.temp}°`;
   els.forecastNowLabel.textContent = current.label;
 
-  els.forecastStats.innerHTML = `
+  if (els.forecastStats) {
+    els.forecastStats.innerHTML = `
     <div><dt>Feels</dt><dd>${current.feelsLike ?? "—"}°</dd></div>
     <div><dt>Humidity</dt><dd>${current.humidity ?? "—"}%</dd></div>
     <div><dt>Wind</dt><dd>${current.wind ?? "—"} km/h</dd></div>
   `;
+  }
 
   els.forecastHourly.innerHTML = hourly
     .map((hour) => {
