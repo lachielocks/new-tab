@@ -1116,11 +1116,15 @@ body.layout-editing .quick-links__item {
   flex-shrink: 0;
 }
 
-.weather.is-expanded .weather__top {
+.weather.is-expanded .weather__top,
+.weather.is-ready:not(.is-settled):not(.is-expanded) .weather__top {
   position: relative;
   z-index: 3;
   width: 100%;
   justify-content: space-between;
+}
+
+.weather.is-expanded .weather__top {
   background:
     linear-gradient(165deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06) 55%, rgba(0, 0, 0, 0.18)),
     var(--glass-mid);
@@ -1304,19 +1308,19 @@ body.layout-editing .quick-links__item {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
-  width: 0;
+  width: 100%;
   min-width: 0;
-  max-width: 0;
+  max-width: none;
   transition:
     max-height 0.48s var(--weather-ease),
-    opacity 0.28s ease;
+    opacity 0.22s ease;
 }
 
 .weather.is-expanded .weather__body {
   flex: 1 1 auto;
   min-height: 0;
   max-height: var(--weather-body-height);
-  width: auto;
+  width: 100%;
   min-width: 0;
   max-width: none;
   opacity: 1;
@@ -1330,7 +1334,16 @@ body.layout-editing .quick-links__item {
     opacity 0.32s ease 0.06s;
 }
 
-.weather:not(.is-expanded) .weather__body {
+/* Keep the panel opaque while height collapses so the morph reads cleanly. */
+.weather.is-ready:not(.is-settled):not(.is-expanded) .weather__body {
+  opacity: 1;
+  transition:
+    max-height 0.48s var(--weather-ease),
+    opacity 0.2s ease 0.28s;
+}
+
+/* Park the body only after the close morph finishes — otherwise collapse snaps. */
+.weather.is-settled:not(.is-expanded) .weather__body {
   position: absolute;
   left: 0;
   top: 0;
@@ -1342,9 +1355,6 @@ body.layout-editing .quick-links__item {
   pointer-events: none;
   visibility: hidden;
   contain: strict;
-}
-
-.weather:not(.is-expanded).is-settled .weather__body {
   display: none;
 }
 
@@ -1361,18 +1371,17 @@ body.layout-editing .quick-links__item {
   display: grid;
   grid-template-areas: "stack";
   height: auto;
-  min-height: var(--weather-body-height);
   padding: 0.9rem 0.85rem 0.95rem;
   box-sizing: border-box;
 }
 
-.weather.is-expanded.is-ready .weather__body-inner {
-  min-height: 0;
+.weather.is-expanded.is-loading .weather__body-inner {
+  min-height: var(--weather-body-height);
 }
 
-.weather:not(.is-expanded) .weather__body-inner,
-.weather:not(.is-expanded) .weather__loading,
-.weather:not(.is-expanded) .weather__content {
+.weather.is-settled:not(.is-expanded) .weather__body-inner,
+.weather.is-settled:not(.is-expanded) .weather__loading,
+.weather.is-settled:not(.is-expanded) .weather__content {
   width: 0;
   min-width: 0;
   max-width: 0;
@@ -1442,7 +1451,8 @@ body.layout-editing .quick-links__item {
   pointer-events: none;
 }
 
-.weather.is-expanded.is-ready .weather__content {
+.weather.is-expanded.is-ready .weather__content,
+.weather.is-ready:not(.is-settled):not(.is-expanded) .weather__content {
   opacity: 1;
   transform: none;
   visibility: visible;
@@ -1451,6 +1461,14 @@ body.layout-editing .quick-links__item {
     opacity 0.36s ease 0.04s,
     transform 0.4s var(--weather-ease) 0.04s,
     visibility 0s;
+}
+
+.weather.is-ready:not(.is-settled):not(.is-expanded) .weather__content {
+  pointer-events: none;
+  transition:
+    opacity 0.28s ease,
+    transform 0.35s var(--weather-ease),
+    visibility 0s linear 0.3s;
 }
 
 .weather.is-expanded.is-ready .weather__loading {

@@ -2261,11 +2261,10 @@ function closeForecast() {
 
   const targetW = weatherCollapsedWidth || measureWeatherChipWidth();
 
-  els.weather.classList.remove("is-ready", "is-loading", "is-settled");
+  els.weather.classList.remove("is-loading", "is-settled");
   els.weatherChip.setAttribute("aria-expanded", "false");
   els.weatherBody.setAttribute("aria-hidden", "true");
   els.forecastClose.tabIndex = -1;
-  els.forecastClose.hidden = true;
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -2276,6 +2275,8 @@ function closeForecast() {
 
   window.setTimeout(() => {
     if (els.weather.classList.contains("is-expanded")) return;
+    els.weather.classList.remove("is-ready");
+    els.forecastClose.hidden = true;
     els.weatherContent.hidden = true;
     els.forecastNowIcon.innerHTML = "";
     els.forecastNowTemp.textContent = "";
