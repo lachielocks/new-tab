@@ -10,9 +10,12 @@ export const DEFAULT_SETTINGS = {
   showQuickLinks: true,
   showWeather: true,
   showPhotoCredit: true,
+  showReroll: true,
   showSettingsButton: true,
   showBackground: true,
   use24h: false,
+  showSeconds: false,
+  clockStyle: /** @type {'digital'|'analog'} */ ("digital"),
   bgSource: "unsplash",
   bgCategory: "nature",
   customImages: /** @type {string[]} */ ([]),
@@ -27,7 +30,7 @@ export const DEFAULT_SETTINGS = {
   lastCustom: null,
   recentUnsplashUrls: /** @type {string[]} */ ([]),
   newPhotoOnOpen: true,
-  quickLinks: /** @type {{title: string, url: string}[]} */ ([]),
+  quickLinks: /** @type {{title: string, url: string, icon?: string, display?: 'name'|'icon'|'both'}[]} */ ([]),
 };
 
 const KEY = "newTabSettings";

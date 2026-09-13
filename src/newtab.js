@@ -4,7 +4,7 @@ import { pickUnsplash, pickCustom, RECENT_UNSPLASH_LIMIT } from "./backgrounds.j
 import { buildDestination, leadingIconHtml, placeholderFor, storeSearchIconHtml } from "./search.js";
 import { applyFont, readFontFile } from "./fonts.js";
 import { checkForUpdate } from "./updates.js";
-import { enhanceSelects, syncSelectUi, closeAllMenus } from "./dropdown.js";
+import { enhanceSelects, syncSelectUi, closeAllMenus, hasOpenMenu, destroySelects } from "./dropdown.js";
 import { STORE_BUILD } from "./flavor.js";
 
 document.body.classList.toggle("flavor-store", STORE_BUILD);
@@ -14,13 +14,26 @@ document.body.classList.toggle("flavor-full", !STORE_BUILD);
 let settings;
 
 const els = {
+  clockWrap: document.getElementById("clock-wrap"),
   clock: document.getElementById("clock"),
+  clockHm: document.getElementById("clock-hm"),
+  clockSec: document.getElementById("clock-sec"),
+  clockSecDigits: document.getElementById("clock-sec-digits"),
+  clockPeriod: document.getElementById("clock-period"),
+  clockAnalog: document.getElementById("clock-analog"),
+  analogHour: document.getElementById("analog-hour"),
+  analogMinute: document.getElementById("analog-minute"),
+  analogSecond: document.getElementById("analog-second"),
   greeting: document.getElementById("greeting"),
   weather: document.getElementById("weather"),
+  weatherShell: document.getElementById("weather-shell"),
+  weatherChip: document.getElementById("weather-chip"),
   weatherTemp: document.getElementById("weather-temp"),
   weatherCond: document.getElementById("weather-cond"),
   weatherIcon: document.getElementById("weather-icon"),
-  forecast: document.getElementById("forecast"),
+  weatherBody: document.getElementById("weather-body"),
+  weatherLoading: document.getElementById("weather-loading"),
+  weatherContent: document.getElementById("weather-content"),
   forecastClose: document.getElementById("forecast-close"),
   forecastPlace: document.getElementById("forecast-place"),
   forecastNowIcon: document.getElementById("forecast-now-icon"),
@@ -32,6 +45,7 @@ const els = {
   bgImage: document.getElementById("bg-image"),
   photoCredit: document.getElementById("photo-credit"),
   photoCreditLink: document.getElementById("photo-credit-link"),
+  wallpaperReroll: document.getElementById("wallpaper-reroll"),
   topbar: document.getElementById("topbar"),
   searchZone: document.getElementById("search-zone"),
   searchForm: document.getElementById("search-form"),
@@ -62,10 +76,14 @@ const els = {
   settingShowSearchHint: document.getElementById("setting-show-search-hint"),
   settingShowQuickLinks: document.getElementById("setting-show-quick-links"),
   settingShowPhotoCredit: document.getElementById("setting-show-photo-credit"),
+  settingShowReroll: document.getElementById("setting-show-reroll"),
   settingShowSettingsButton: document.getElementById("setting-show-settings-button"),
   settingShowBackground: document.getElementById("setting-show-background"),
   settingWeather: document.getElementById("setting-weather"),
+  settingClockStyle: document.getElementById("setting-clock-style"),
   setting24h: document.getElementById("setting-24h"),
+  settingShowSeconds: document.getElementById("setting-show-seconds"),
+  clock24hHelp: document.getElementById("clock-24h-help"),
   quickLinksEditor: document.getElementById("quick-links-editor"),
   quickLinksList: document.getElementById("quick-links-list"),
   quickLinkAdd: document.getElementById("quick-link-add"),
@@ -84,8 +102,6 @@ const els = {
   settingFontPreset: document.getElementById("setting-font-preset"),
   settingFontGoogle: document.getElementById("setting-font-google"),
   settingFontFile: document.getElementById("setting-font-file"),
-  googleFontField: document.getElementById("google-font-field"),
-  fileFontField: document.getElementById("file-font-field"),
   updateBanner: document.getElementById("update-banner"),
   updateBannerCopy: document.getElementById("update-banner-copy"),
   updateDownload: document.getElementById("update-download"),
@@ -95,7 +111,7 @@ const els = {
 let searchMode = "web";
 /** @type {string[]} */
 let draftCustomImages = [];
-/** @type {{title: string, url: string}[]} */
+/** @type {{title: string, url: string, icon?: string, display?: 'name'|'icon'|'both'}[]} */
 let draftQuickLinks = [];
 let draftFontDataUrl = "";
 let draftFontFormat = "";
@@ -105,6 +121,13 @@ let previewTimer = null;
 /** @type {{ url: string, credit?: string, link?: string } | null} */
 let previewPhoto = null;
 let sessionSettingsBackup = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let weatherCloseTimer = null;
+/** @type {WeakMap<HTMLElement, ReturnType<typeof setTimeout>>} */
+const revealTimers = new WeakMap();
+/** @type {ReturnType<typeof setTimeout> | null} */
+let greetingSwapTimer = null;
+const REVEAL_MS = 420;
 
 async function init() {
   settings = await loadSettings();
@@ -144,6 +167,10 @@ async function init() {
     openSettings();
     history.replaceState(null, "", location.pathname);
   }
+
+  requestAnimationFrame(() => {
+    document.body.classList.add("ui-ready");
+  });
 }
 
 function bindEvents() {
@@ -193,6 +220,7 @@ function bindEvents() {
 
   els.settings.addEventListener("input", schedulePreview);
   els.settings.addEventListener("change", schedulePreview);
+  bindSettingHighlights();
 
   document.getElementById("settings-tabs").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-tab]");
@@ -213,7 +241,10 @@ function bindEvents() {
     previewPhoto = null;
     syncBgSourceUi();
   });
-  els.settingFontPreset.addEventListener("change", syncFontFields);
+  els.settingFontGoogle.addEventListener("input", () => {
+    if (!els.settingFontGoogle.value.trim()) return;
+    selectFontPreset("custom-google");
+  });
   els.settingShowQuickLinks.addEventListener("change", syncQuickLinksEditor);
   els.settingShowBackground.addEventListener("change", syncBackgroundOptions);
   els.settingBgCategory.addEventListener("change", () => {
@@ -246,12 +277,18 @@ function bindEvents() {
     paintBackground(photo, { allowRetry: false, state: readFormDraft() });
   });
 
+  els.wallpaperReroll?.addEventListener("click", () => {
+    void rerollWallpaper();
+  });
+
   els.quickLinkAdd.addEventListener("click", () => {
     if (draftQuickLinks.length >= 8) return;
-    draftQuickLinks.push({ title: "", url: "" });
+    draftQuickLinks.push({ title: "", url: "", icon: "", display: "name" });
     renderQuickLinkRows();
     schedulePreview();
   });
+
+  els.settingClockStyle.addEventListener("change", syncClockFields);
 
   els.quickLinksZone.addEventListener("mouseleave", () => {
     const active = document.activeElement;
@@ -263,25 +300,13 @@ function bindEvents() {
   els.settingFontFile.addEventListener("change", async () => {
     const file = els.settingFontFile.files?.[0];
     if (!file) return;
-    const { dataUrl, format } = await readFontFile(file);
-    draftFontDataUrl = dataUrl;
-    draftFontFormat = format;
-    const zone = els.settingFontFile.closest(".dropzone");
-    if (zone) {
-      const title = zone.querySelector(".dropzone__title");
-      if (title) title.textContent = file.name;
-    }
+    await applyUploadedFont(file);
   });
 
   bindDropzone(els.settingFontFile?.closest(".dropzone"), async (files) => {
     const file = files.find((f) => /\.(woff2?|ttf|otf)$/i.test(f.name) || f.type.includes("font"));
     if (!file) return;
-    const { dataUrl, format } = await readFontFile(file);
-    draftFontDataUrl = dataUrl;
-    draftFontFormat = format;
-    const zone = els.settingFontFile.closest(".dropzone");
-    const title = zone?.querySelector(".dropzone__title");
-    if (title) title.textContent = file.name;
+    await applyUploadedFont(file);
   });
 
   els.searchInput.addEventListener("keydown", (e) => {
@@ -306,24 +331,31 @@ function bindEvents() {
   });
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      if (!els.forecast.hidden) closeForecast();
-      else if (!els.settings.hidden) closeSettings();
-    }
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    dismissTopLayer();
   });
 
-  els.weather.addEventListener("click", async () => {
+  els.weatherChip.addEventListener("click", async () => {
     if (els.weather.classList.contains("weather--needs-location")) {
       const granted = await requestLocationAccess();
       if (granted) loadWeather();
       return;
     }
+    if (els.weather.classList.contains("is-expanded")) return;
     openForecast();
   });
 
-  els.forecastClose.addEventListener("click", closeForecast);
-  els.forecast.addEventListener("click", (e) => {
-    if (e.target === els.forecast) closeForecast();
+  els.forecastClose.addEventListener("click", (e) => {
+    e.stopPropagation();
+    closeForecast();
+  });
+
+  document.addEventListener("pointerdown", (e) => {
+    if (!els.weather.classList.contains("is-expanded")) return;
+    const target = /** @type {Node} */ (e.target);
+    if (els.weather.contains(target)) return;
+    closeForecast();
   });
 
   els.updateDismiss.addEventListener("click", async () => {
@@ -334,6 +366,24 @@ function bindEvents() {
 }
 
 const SETTINGS_ANIM_MS = 520;
+const WEATHER_ANIM_MS = 520;
+
+/**
+ * Close the topmost open UI layer: menus → weather → settings.
+ */
+function dismissTopLayer() {
+  if (hasOpenMenu()) {
+    closeAllMenus();
+    return;
+  }
+  if (els.weather.classList.contains("is-expanded")) {
+    closeForecast();
+    return;
+  }
+  if (document.body.classList.contains("settings-open")) {
+    closeSettings();
+  }
+}
 
 /**
  * @param {boolean} forceNew
@@ -356,7 +406,42 @@ function unsplashRememberPatch(photo) {
   return { lastUnsplash: photo, recentUnsplashUrls };
 }
 
+async function rerollWallpaper() {
+  if (!settings.showBackground) return;
+
+  const btn = els.wallpaperReroll;
+  if (btn) {
+    btn.classList.remove("is-spinning");
+    // Force restart so rapid clicks still animate
+    void btn.offsetWidth;
+    btn.classList.add("is-spinning");
+    window.setTimeout(() => btn.classList.remove("is-spinning"), 560);
+  }
+
+  if (settings.bgSource === "custom") {
+    const photo = pickCustom(settings.customImages, {
+      forceNew: true,
+      previousUrl: previewPhoto?.url || settings.lastCustom?.url,
+    });
+    if (!photo) return;
+    previewPhoto = photo;
+    settings = await saveSettings({ lastCustom: photo });
+    paintBackground(photo);
+    return;
+  }
+
+  const photo = pickUnsplash(
+    settings.bgCategory,
+    bgPickOpts(true, previewPhoto?.url || settings.lastUnsplash?.url),
+  );
+  if (!photo) return;
+  previewPhoto = photo;
+  settings = await saveSettings(unsplashRememberPatch(photo));
+  paintBackground(photo);
+}
+
 function openSettings() {
+  closeForecast();
   sessionSettingsBackup = JSON.parse(JSON.stringify(settings));
   populateSettingsForm();
   previewPhoto = null;
@@ -385,6 +470,7 @@ function closeSettings() {
 
   document.body.classList.remove("settings-open", "settings-tab-links");
   previewPhoto = null;
+  clearSettingHighlight();
   closeAllMenus();
 
   let finished = false;
@@ -413,10 +499,13 @@ function populateSettingsForm() {
   els.settingShowSearchHint.checked = settings.showSearchHint;
   els.settingShowQuickLinks.checked = settings.showQuickLinks;
   els.settingShowPhotoCredit.checked = settings.showPhotoCredit;
+  els.settingShowReroll.checked = settings.showReroll !== false;
   els.settingShowSettingsButton.checked = settings.showSettingsButton;
   els.settingShowBackground.checked = settings.showBackground;
   els.settingWeather.checked = settings.showWeather;
+  els.settingClockStyle.value = settings.clockStyle || "digital";
   els.setting24h.checked = settings.use24h;
+  els.settingShowSeconds.checked = settings.showSeconds;
   els.settingBgNewOnOpen.checked = settings.newPhotoOnOpen;
   els.settingBgSource.value = settings.bgSource;
   els.settingBgCategory.value = settings.bgCategory;
@@ -425,16 +514,22 @@ function populateSettingsForm() {
   els.settingFontPreset.value = settings.fontPreset;
   els.settingFontGoogle.value = settings.googleFontName || "";
   draftCustomImages = [...(settings.customImages || [])];
-  draftQuickLinks = (settings.quickLinks || []).map((link) => ({ ...link }));
+  draftQuickLinks = (settings.quickLinks || []).map((link) => ({
+    title: link.title || "",
+    url: link.url || "",
+    icon: link.icon || "",
+    display: link.display || (link.icon ? "both" : "name"),
+  }));
   draftFontDataUrl = settings.customFontDataUrl || "";
   draftFontFormat = settings.customFontFormat || "";
+  syncSelectUi(els.settingClockStyle);
   syncSelectUi(els.settingBgSource);
   syncSelectUi(els.settingBgCategory);
   syncSelectUi(els.settingSearchEngine);
   syncSelectUi(els.settingAiProvider);
   syncSelectUi(els.settingFontPreset);
   syncBgSourceUi();
-  syncFontFields();
+  syncClockFields();
   syncQuickLinksEditor();
   syncBackgroundOptions();
   renderThumbs();
@@ -462,9 +557,6 @@ function schedulePreview() {
     const draft = readFormDraft();
     settings = await saveSettings(draft);
     applyPreviewFromForm();
-    if (settings.showWeather && els.weather.hidden) {
-      loadWeather();
-    }
   }, 60);
 }
 
@@ -481,10 +573,13 @@ function readFormDraft() {
     showSearchHint: els.settingShowSearchHint.checked,
     showQuickLinks: els.settingShowQuickLinks.checked,
     showPhotoCredit: els.settingShowPhotoCredit.checked,
+    showReroll: els.settingShowReroll.checked,
     showSettingsButton: els.settingShowSettingsButton.checked,
     showBackground: els.settingShowBackground.checked,
     showWeather: els.settingWeather.checked,
     use24h: els.setting24h.checked,
+    showSeconds: els.settingShowSeconds.checked,
+    clockStyle: /** @type {'digital'|'analog'} */ (els.settingClockStyle.value),
     quickLinks: normalizeQuickLinks(draftQuickLinks),
     newPhotoOnOpen: els.settingBgNewOnOpen.checked,
     bgSource: /** @type {'unsplash'|'custom'} */ (els.settingBgSource.value),
@@ -513,7 +608,7 @@ function applyPreviewFromForm() {
 function previewBackground(draft) {
   if (!draft.showBackground) {
     showBackgroundFallback();
-    els.photoCredit.hidden = true;
+    setRevealed(els.photoCredit, false);
     return;
   }
 
@@ -528,7 +623,7 @@ function previewBackground(draft) {
     });
     if (!photo) {
       showBackgroundFallback();
-      els.photoCredit.hidden = true;
+      setRevealed(els.photoCredit, false);
       return;
     }
     paintBackground(photo, { allowRetry: false, state: draft });
@@ -554,9 +649,6 @@ async function saveSettingsFromForm() {
     applyPreviewFromForm();
     await applyBackground(true);
     updateWeatherVisibility();
-    if (settings.showWeather && els.weather.hidden) {
-      loadWeather();
-    }
     // Don't close so they can see the revert, or close? The prompt: "a revert button for each session". We'll keep it open.
   }
 }
@@ -566,14 +658,136 @@ function applyLayout() {
 }
 
 /**
+ * Smoothly show or hide a UI element with fade/slide.
+ * @param {HTMLElement | null} el
+ * @param {boolean} show
+ */
+function setRevealed(el, show) {
+  if (!el) return;
+  const pending = revealTimers.get(el);
+  if (pending) window.clearTimeout(pending);
+
+  if (show) {
+    if (!el.hidden && el.classList.contains("is-shown")) return;
+    el.hidden = false;
+    el.classList.remove("is-hiding");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.classList.add("is-shown");
+      });
+    });
+    return;
+  }
+
+  if (el.hidden && !el.classList.contains("is-shown")) return;
+  el.classList.remove("is-shown");
+  el.classList.add("is-hiding");
+  const timer = window.setTimeout(() => {
+    if (!el.classList.contains("is-shown")) {
+      el.hidden = true;
+      el.classList.remove("is-hiding");
+    }
+  }, REVEAL_MS);
+  revealTimers.set(el, timer);
+}
+
+/** @type {{ el: HTMLElement, hidden: boolean } | null} */
+let settingHighlight = null;
+/** @type {HTMLElement | null} */
+let settingHighlightField = null;
+
+function bindSettingHighlights() {
+  els.settings.addEventListener("pointerover", (e) => {
+    const field = /** @type {HTMLElement | null} */ (
+      e.target instanceof Element ? e.target.closest("[data-highlight]") : null
+    );
+    if (!field || field === settingHighlightField) return;
+    settingHighlightField = field;
+    setSettingHighlight(field.dataset.highlight || "");
+  });
+
+  els.settings.addEventListener("pointerout", (e) => {
+    const field = /** @type {HTMLElement | null} */ (
+      e.target instanceof Element ? e.target.closest("[data-highlight]") : null
+    );
+    if (!field || field !== settingHighlightField) return;
+    const next = e.relatedTarget;
+    if (next instanceof Node && field.contains(next)) return;
+    settingHighlightField = null;
+    clearSettingHighlight();
+  });
+
+  els.settings.addEventListener("focusin", (e) => {
+    const field = /** @type {HTMLElement | null} */ (
+      e.target instanceof Element ? e.target.closest("[data-highlight]") : null
+    );
+    if (!field) return;
+    settingHighlightField = field;
+    setSettingHighlight(field.dataset.highlight || "");
+  });
+
+  els.settings.addEventListener("focusout", (e) => {
+    const field = /** @type {HTMLElement | null} */ (
+      e.target instanceof Element ? e.target.closest("[data-highlight]") : null
+    );
+    if (!field) return;
+    const next = e.relatedTarget;
+    if (next instanceof Node && field.contains(next)) return;
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      const activeField =
+        active instanceof Element ? active.closest("[data-highlight]") : null;
+      if (activeField && els.settings.contains(activeField)) {
+        settingHighlightField = /** @type {HTMLElement} */ (activeField);
+        setSettingHighlight(activeField.getAttribute("data-highlight") || "");
+        return;
+      }
+      settingHighlightField = null;
+      clearSettingHighlight();
+    });
+  });
+}
+
+/**
+ * @param {string} selector
+ */
+function setSettingHighlight(selector) {
+  clearSettingHighlight();
+  if (!selector) return;
+  const el = document.querySelector(selector);
+  if (!(el instanceof HTMLElement)) return;
+
+  settingHighlight = { el, hidden: el.hidden };
+  if (el.hidden) el.hidden = false;
+  el.classList.add("is-setting-highlight");
+  if (!el.classList.contains("is-shown")) {
+    el.classList.add("is-setting-highlight-ghost");
+  }
+}
+
+function clearSettingHighlight() {
+  if (!settingHighlight) return;
+  const { el, hidden } = settingHighlight;
+  el.classList.remove("is-setting-highlight", "is-setting-highlight-ghost");
+  if (hidden && !el.classList.contains("is-shown")) {
+    el.hidden = true;
+  }
+  settingHighlight = null;
+}
+
+/**
  * @param {import('./types.js').Settings} state
  */
 function applyLayoutWithState(state) {
-  els.clock.hidden = !state.showClock;
-  els.greeting.hidden = !state.showGreeting;
-  els.searchZone.hidden = !state.showSearch;
-  els.settingsOpen.hidden = !state.showSettingsButton;
-  els.topbar.hidden = !(state.showWeather || state.showSettingsButton);
+  setRevealed(els.clockWrap, state.showClock);
+  setRevealed(els.greeting, state.showGreeting);
+  setRevealed(els.searchZone, state.showSearch);
+  setRevealed(els.settingsOpen, state.showSettingsButton);
+  setRevealed(els.wallpaperReroll, Boolean(state.showReroll && state.showBackground));
+
+  const showTopbar = state.showWeather || state.showSettingsButton;
+  els.topbar.hidden = !showTopbar;
+
   document.body.classList.toggle(
     "page-minimal",
     !state.showClock &&
@@ -601,10 +815,39 @@ function syncBgSourceUi() {
   els.customOptions.hidden = !custom;
 }
 
-function syncFontFields() {
-  const value = els.settingFontPreset.value;
-  els.googleFontField.hidden = value !== "custom-google";
-  els.fileFontField.hidden = value !== "custom-file";
+/**
+ * @param {'custom-google'|'custom-file'|string} value
+ */
+function selectFontPreset(value) {
+  if (els.settingFontPreset.value === value) return;
+  els.settingFontPreset.value = value;
+  syncSelectUi(els.settingFontPreset);
+}
+
+/**
+ * @param {File} file
+ */
+async function applyUploadedFont(file) {
+  const { dataUrl, format } = await readFontFile(file);
+  draftFontDataUrl = dataUrl;
+  draftFontFormat = format;
+  const zone = els.settingFontFile.closest(".dropzone");
+  const title = zone?.querySelector(".dropzone__title");
+  if (title) title.textContent = file.name;
+  selectFontPreset("custom-file");
+  schedulePreview();
+}
+
+function syncClockFields() {
+  const analog = els.settingClockStyle.value === "analog";
+  els.setting24h.closest(".field")?.classList.toggle("is-disabled", analog);
+  els.setting24h.disabled = analog;
+  if (els.clock24hHelp) {
+    els.clock24hHelp.hidden = !analog;
+    els.clock24hHelp.textContent = analog
+      ? "24-hour format applies to the digital clock."
+      : "Applies to the digital clock.";
+  }
 }
 
 function syncQuickLinksEditor() {
@@ -612,14 +855,48 @@ function syncQuickLinksEditor() {
 }
 
 function renderQuickLinkRows() {
+  destroySelects(els.quickLinksList);
   els.quickLinksList.innerHTML = "";
   draftQuickLinks.forEach((link, index) => {
+    const display = link.display || (link.icon ? "both" : "name");
     const row = document.createElement("div");
     row.className = "link-row";
     row.innerHTML = `
-      <input class="field__input link-row__title" type="text" placeholder="Label" maxlength="32" value="${escapeAttr(link.title)}" />
-      <input class="field__input link-row__url" type="text" placeholder="https://" autocomplete="off" spellcheck="false" value="${escapeAttr(link.url)}" />
-      <button type="button" class="link-row__remove" aria-label="Remove link">×</button>`;
+      <div class="link-row__fields">
+        <input class="field__input link-row__title" type="text" placeholder="Label" maxlength="32" value="${escapeAttr(link.title)}" />
+        <input class="field__input link-row__url" type="text" placeholder="https://" autocomplete="off" spellcheck="false" value="${escapeAttr(link.url)}" />
+        <button type="button" class="link-row__remove" aria-label="Remove link">×</button>
+      </div>
+      <div class="link-row__meta">
+        <div class="link-row__icon">
+          <span class="link-row__icon-label">Favicon</span>
+          <div class="link-row__icon-controls">
+            <span class="link-row__icon-preview">${
+              link.icon
+                ? `<img src="${escapeAttr(link.icon)}" alt="" />`
+                : `<span aria-hidden="true">◇</span>`
+            }</span>
+            <label class="link-row__icon-btn">
+              ${link.icon ? "Replace" : "Upload"}
+              <input class="link-row__icon-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,.ico" />
+            </label>
+            ${
+              link.icon
+                ? `<button type="button" class="link-row__icon-btn link-row__icon-btn--clear" aria-label="Remove favicon">×</button>`
+                : ""
+            }
+          </div>
+        </div>
+        <label class="field">
+          <span class="field__label">Show</span>
+          <select class="field__input field__input--select link-row__display">
+            <option value="name"${display === "name" ? " selected" : ""}>Name only</option>
+            <option value="icon"${display === "icon" ? " selected" : ""}>Favicon only</option>
+            <option value="both"${display === "both" ? " selected" : ""}>Name + favicon</option>
+          </select>
+        </label>
+      </div>`;
+
     row.querySelector(".link-row__title").addEventListener("input", (e) => {
       draftQuickLinks[index].title = /** @type {HTMLInputElement} */ (e.target).value;
       schedulePreview();
@@ -633,7 +910,37 @@ function renderQuickLinkRows() {
       renderQuickLinkRows();
       schedulePreview();
     });
+    row.querySelector(".link-row__display").addEventListener("change", (e) => {
+      draftQuickLinks[index].display = /** @type {'name'|'icon'|'both'} */ (
+        /** @type {HTMLSelectElement} */ (e.target).value
+      );
+      schedulePreview();
+    });
+    row.querySelector(".link-row__icon-input").addEventListener("change", async (e) => {
+      const file = /** @type {HTMLInputElement} */ (e.target).files?.[0];
+      if (!file) return;
+      try {
+        draftQuickLinks[index].icon = await readIconFile(file);
+        if (!draftQuickLinks[index].display || draftQuickLinks[index].display === "name") {
+          draftQuickLinks[index].display = "both";
+        }
+        renderQuickLinkRows();
+        schedulePreview();
+      } catch {
+        // ignore bad uploads
+      }
+    });
+    row.querySelector(".link-row__icon-btn--clear")?.addEventListener("click", () => {
+      draftQuickLinks[index].icon = "";
+      if (draftQuickLinks[index].display === "icon") {
+        draftQuickLinks[index].display = "name";
+      }
+      renderQuickLinkRows();
+      schedulePreview();
+    });
+
     els.quickLinksList.appendChild(row);
+    enhanceSelects(row);
   });
   els.quickLinkAdd.disabled = draftQuickLinks.length >= 8;
 }
@@ -648,31 +955,55 @@ function renderQuickLinks() {
 function renderQuickLinksWithState(state) {
   const links = state.showQuickLinks && state.showSearch ? state.quickLinks || [] : [];
   if (!links.length) {
-    els.quickLinksZone.hidden = true;
+    setRevealed(els.quickLinksZone, false);
     els.quickLinks.innerHTML = "";
     return;
   }
 
-  els.quickLinksZone.hidden = false;
   els.quickLinks.innerHTML = links
     .map((link) => {
       const url = normalizeUrl(link.url);
       if (!url) return "";
       const label = link.title?.trim() || linkDomain(url) || "Link";
-      return `<a class="quick-links__item" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+      const display = resolveLinkDisplay(link);
+      const icon =
+        link.icon && display !== "name"
+          ? `<img class="quick-links__icon" src="${escapeAttr(link.icon)}" alt="" />`
+          : "";
+      const text =
+        display !== "icon" ? `<span class="quick-links__label">${escapeHtml(label)}</span>` : "";
+      const iconOnly = display === "icon" ? " quick-links__item--icon-only" : "";
+      return `<a class="quick-links__item${iconOnly}" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer" title="${escapeAttr(label)}">${icon}${text}</a>`;
     })
     .join("");
+  setRevealed(els.quickLinksZone, true);
 }
 
 /**
- * @param {{title: string, url: string}[]} links
+ * @param {{title: string, url: string, icon?: string, display?: 'name'|'icon'|'both'}} link
+ * @returns {'name'|'icon'|'both'}
+ */
+function resolveLinkDisplay(link) {
+  const requested = link.display || (link.icon ? "both" : "name");
+  if ((requested === "icon" || requested === "both") && !link.icon) return "name";
+  return requested;
+}
+
+/**
+ * @param {{title: string, url: string, icon?: string, display?: 'name'|'icon'|'both'}[]} links
  */
 function normalizeQuickLinks(links) {
   return links
-    .map((link) => ({
-      title: link.title.trim(),
-      url: normalizeUrl(link.url),
-    }))
+    .map((link) => {
+      const icon = typeof link.icon === "string" && link.icon.startsWith("data:") ? link.icon : "";
+      const display = resolveLinkDisplay({ ...link, icon });
+      return {
+        title: link.title.trim(),
+        url: normalizeUrl(link.url),
+        icon,
+        display,
+      };
+    })
     .filter((link) => link.url)
     .slice(0, 8);
 }
@@ -754,16 +1085,58 @@ function renderClock() {
  * @param {import('./types.js').Settings} state
  */
 function renderClockWithState(state) {
-  if (!state.showClock) return;
+  if (!state.showClock && els.clockWrap.hidden) return;
   const now = new Date();
-  const opts = {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: !state.use24h,
-  };
-  const text = new Intl.DateTimeFormat(undefined, opts).format(now);
-  els.clock.textContent = text.replace(/\s?(AM|PM)/i, (m) => m.toLowerCase());
+  const analog = state.clockStyle === "analog";
+
+  els.clockWrap.classList.toggle("has-seconds", Boolean(state.showSeconds));
+  els.clock.classList.toggle("is-active", !analog);
+  els.clockAnalog.classList.toggle("is-active", analog);
+  els.clockAnalog.setAttribute("aria-hidden", analog ? "false" : "true");
+  els.clockSec?.setAttribute("aria-hidden", state.showSeconds ? "false" : "true");
+
+  if (analog) {
+    const hours = now.getHours() % 12;
+    const minutes = now.getMinutes();
+    const seconds = now.getSeconds();
+    const hourAngle = hours * 30 + minutes * 0.5;
+    const minuteAngle = minutes * 6 + seconds * 0.1;
+    const secondAngle = seconds * 6;
+    els.analogHour.style.transform = `rotate(${hourAngle}deg)`;
+    els.analogMinute.style.transform = `rotate(${minuteAngle}deg)`;
+    els.analogSecond.style.transform = `rotate(${secondAngle}deg)`;
+    els.clock.dateTime = now.toISOString();
+    return;
+  }
+
+  const parts = formatDigitalParts(now, {
+    use24h: state.use24h,
+    showSeconds: state.showSeconds,
+  });
+  els.clockHm.textContent = parts.hm;
+  els.clockSecDigits.textContent = parts.sec;
+  els.clockPeriod.textContent = parts.period;
   els.clock.dateTime = now.toISOString();
+}
+
+/**
+ * @param {Date} now
+ * @param {{use24h: boolean, showSeconds: boolean}} opts
+ */
+function formatDigitalParts(now, opts) {
+  let hours = now.getHours();
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const sec = String(now.getSeconds()).padStart(2, "0");
+  let period = "";
+  if (!opts.use24h) {
+    period = hours >= 12 ? "pm" : "am";
+    hours = hours % 12 || 12;
+  }
+  return {
+    hm: `${hours}:${minutes}`,
+    sec,
+    period,
+  };
 }
 
 function renderGreeting() {
@@ -774,13 +1147,33 @@ function renderGreeting() {
  * @param {import('./types.js').Settings} state
  */
 function renderGreetingWithState(state) {
-  if (!state.showGreeting) return;
+  if (!state.showGreeting && els.greeting.hidden) return;
   const hour = new Date().getHours();
   let part = "evening";
   if (hour < 12) part = "morning";
   else if (hour < 18) part = "afternoon";
   const name = state.name?.trim();
-  els.greeting.textContent = name ? `Good ${part}, ${name}` : `Good ${part}`;
+  const next = name ? `Good ${part}, ${name}` : `Good ${part}`;
+  setGreetingText(next);
+}
+
+/**
+ * @param {string} next
+ */
+function setGreetingText(next) {
+  if (els.greeting.textContent === next) return;
+  if (!document.body.classList.contains("ui-ready") || !els.greeting.classList.contains("is-shown")) {
+    els.greeting.textContent = next;
+    return;
+  }
+  if (greetingSwapTimer) window.clearTimeout(greetingSwapTimer);
+  els.greeting.classList.add("is-swapping");
+  greetingSwapTimer = window.setTimeout(() => {
+    els.greeting.textContent = next;
+    requestAnimationFrame(() => {
+      els.greeting.classList.remove("is-swapping");
+    });
+  }, 180);
 }
 
 function renderSearchChrome() {
@@ -794,7 +1187,7 @@ function renderSearchChromeWithState(state) {
   if (STORE_BUILD) {
     els.searchLeading.innerHTML = storeSearchIconHtml();
     els.searchInput.placeholder = "Search";
-    els.searchHint.hidden = !state.showSearch || !state.showSearchHint;
+    setRevealed(els.searchHint, Boolean(state.showSearch && state.showSearchHint));
     if (state.showSearch && state.showSearchHint) {
       els.searchHint.textContent = "Press Enter to search";
     }
@@ -811,8 +1204,9 @@ function renderSearchChromeWithState(state) {
     state.searchEngine,
     state.aiProvider
   );
-  els.searchHint.hidden = !state.showSearch || !state.showSearchHint;
-  if (!state.showSearch || !state.showSearchHint) return;
+  const showHint = Boolean(state.showSearch && state.showSearchHint);
+  setRevealed(els.searchHint, showHint);
+  if (!showHint) return;
   const aiName =
     state.aiProvider === "acosta"
       ? "Acosta"
@@ -826,7 +1220,7 @@ function renderSearchChromeWithState(state) {
 async function applyBackground(fromSettings) {
   if (!settings.showBackground) {
     showBackgroundFallback();
-    els.photoCredit.hidden = true;
+    setRevealed(els.photoCredit, false);
     return;
   }
 
@@ -890,11 +1284,11 @@ function paintBackground(photo, { allowRetry = true, state = settings, tried = n
     els.bgImage.classList.remove("is-fallback");
     els.bgImage.style.backgroundImage = `url("${photo.url}")`;
     if (photo.credit && state.showPhotoCredit) {
-      els.photoCredit.hidden = false;
       els.photoCreditLink.textContent = photo.credit;
       els.photoCreditLink.href = photo.link || "#";
+      setRevealed(els.photoCredit, true);
     } else {
-      els.photoCredit.hidden = true;
+      setRevealed(els.photoCredit, false);
     }
   };
   img.onerror = () => {
@@ -929,7 +1323,7 @@ function paintBackground(photo, { allowRetry = true, state = settings, tried = n
 function showBackgroundFallback() {
   els.bgImage.classList.add("is-fallback");
   els.bgImage.style.backgroundImage = "";
-  els.photoCredit.hidden = true;
+  setRevealed(els.photoCredit, false);
 }
 
 /**
@@ -982,9 +1376,15 @@ function updateWeatherVisibility() {
  */
 function updateWeatherVisibilityWithState(state) {
   if (!state.showWeather) {
-    els.weather.hidden = true;
-    els.weather.classList.remove("weather--needs-location");
+    closeForecast();
+    els.weather.classList.remove("weather--needs-location", "is-expanded", "is-loading", "is-ready");
+    setRevealed(els.weather, false);
+    return;
   }
+
+  const visible =
+    els.weather.classList.contains("is-shown") && !els.weather.classList.contains("is-hiding");
+  if (!visible) loadWeather();
 }
 
 async function maybeShowUpdate() {
@@ -1022,8 +1422,8 @@ async function loadWeather() {
       showWeatherChip(cached.lastWeather, { cached: true });
       return;
     }
-    els.weather.hidden = true;
     els.weather.classList.remove("weather--needs-location");
+    setRevealed(els.weather, false);
   }
 }
 
@@ -1032,13 +1432,19 @@ async function loadWeather() {
  * @param {{needsLocation?: boolean, cached?: boolean}} [opts]
  */
 function showWeatherChip(weather, opts = {}) {
+  if (!els.weather.classList.contains("is-expanded")) {
+    els.weather.classList.add("is-settled");
+  }
+
   if (opts.needsLocation) {
     els.weatherTemp.textContent = "";
     els.weatherCond.textContent = weather.label;
     els.weatherIcon.innerHTML = weather.iconHtml;
     els.weather.classList.add("weather--needs-location");
-    els.weather.title = "Click to allow location access for weather";
-    els.weather.hidden = false;
+    els.weatherChip.title = "Click to allow location access for weather";
+    els.weatherChip.setAttribute("aria-label", "Enable location for weather");
+    setRevealed(els.weather, true);
+    requestAnimationFrame(() => settleWeatherChip());
     return;
   }
 
@@ -1046,13 +1452,80 @@ function showWeatherChip(weather, opts = {}) {
   els.weatherCond.textContent = opts.cached ? `${weather.label} · offline` : weather.label;
   els.weatherIcon.innerHTML = weather.iconHtml;
   els.weather.classList.remove("weather--needs-location");
-  els.weather.title = opts.cached ? "Showing last known weather (offline)" : "Open forecast";
-  els.weather.hidden = false;
+  els.weatherChip.title = opts.cached ? "Showing last known weather (offline)" : "Open forecast";
+  els.weatherChip.setAttribute("aria-label", "Open weather forecast");
+  setRevealed(els.weather, true);
+  requestAnimationFrame(() => settleWeatherChip());
+}
+
+/** @type {number | null} */
+let weatherCollapsedWidth = null;
+
+function weatherExpandedWidthPx() {
+  const raw = getComputedStyle(els.weather).getPropertyValue("--weather-width").trim();
+  const probe = document.createElement("div");
+  probe.style.cssText = `position:absolute;visibility:hidden;width:${raw}`;
+  document.body.appendChild(probe);
+  const width = probe.getBoundingClientRect().width;
+  probe.remove();
+  return Math.round(width) || Math.min(304, window.innerWidth - 40);
+}
+
+function lockWeatherShellWidth(px) {
+  els.weatherShell.style.width = `${Math.round(px)}px`;
+}
+
+function clearWeatherShellWidth() {
+  els.weatherShell.style.width = "";
+}
+
+function measureWeatherChipWidth() {
+  return Math.max(
+    1,
+    Math.round(els.weatherChip.scrollWidth) ||
+      Math.round(els.weatherChip.getBoundingClientRect().width),
+  );
+}
+
+/** Lock shell to chip content width and hide body from layout. */
+function settleWeatherChip() {
+  if (els.weather.classList.contains("is-expanded")) return;
+  els.weather.classList.add("is-settled");
+  const prevTransition = els.weatherShell.style.transition;
+  els.weatherShell.style.transition = "none";
+  clearWeatherShellWidth();
+  const width = measureWeatherChipWidth();
+  weatherCollapsedWidth = width;
+  lockWeatherShellWidth(width);
+  // Force reflow so the next frame can animate expand/collapse again
+  void els.weatherShell.offsetWidth;
+  els.weatherShell.style.transition = prevTransition;
+}
+
+function weatherCollapsedWidthPx() {
+  clearWeatherShellWidth();
+  return measureWeatherChipWidth();
 }
 
 async function openForecast() {
-  els.forecast.hidden = false;
-  els.forecastPlace.textContent = "Loading…";
+  if (weatherCloseTimer) {
+    clearTimeout(weatherCloseTimer);
+    weatherCloseTimer = null;
+  }
+
+  // Body must participate in layout for the expand morph
+  els.weather.classList.remove("is-settled");
+  weatherCollapsedWidth = weatherCollapsedWidthPx();
+  lockWeatherShellWidth(weatherCollapsedWidth);
+
+  els.weather.classList.remove("is-ready");
+  els.weather.classList.add("is-loading");
+  els.weatherContent.hidden = true;
+  els.forecastClose.hidden = false;
+  els.forecastClose.tabIndex = 0;
+  els.weatherBody.setAttribute("aria-hidden", "false");
+  els.weatherChip.setAttribute("aria-expanded", "true");
+  els.forecastPlace.textContent = "Local weather";
   els.forecastNowTemp.textContent = "";
   els.forecastNowLabel.textContent = "";
   els.forecastNowIcon.innerHTML = "";
@@ -1060,22 +1533,79 @@ async function openForecast() {
   els.forecastHourly.innerHTML = "";
   els.forecastDaily.innerHTML = "";
 
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      els.weather.classList.add("is-expanded");
+      lockWeatherShellWidth(weatherExpandedWidthPx());
+    });
+  });
+
   try {
     const data = await fetchForecast();
     await chrome.storage.local.set({ lastForecast: data });
     renderForecast(data);
+    revealForecastContent();
   } catch {
     const cached = await chrome.storage.local.get("lastForecast");
     if (cached.lastForecast) {
       renderForecast(cached.lastForecast, { cached: true });
+      revealForecastContent();
       return;
     }
     els.forecastPlace.textContent = "Couldn't load forecast";
+    els.forecastNowLabel.textContent = "Try again in a moment";
+    els.weatherContent.hidden = false;
+    revealForecastContent();
   }
 }
 
+function revealForecastContent() {
+  els.weatherContent.hidden = false;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      els.weather.classList.remove("is-loading");
+      els.weather.classList.add("is-ready");
+    });
+  });
+}
+
 function closeForecast() {
-  els.forecast.hidden = true;
+  if (!els.weather.classList.contains("is-expanded")) return;
+
+  const currentW = Math.round(els.weatherShell.getBoundingClientRect().width);
+  lockWeatherShellWidth(currentW);
+
+  const targetW = weatherCollapsedWidth || measureWeatherChipWidth();
+
+  els.weather.classList.remove("is-ready", "is-loading", "is-settled");
+  els.weatherChip.setAttribute("aria-expanded", "false");
+  els.weatherBody.setAttribute("aria-hidden", "true");
+  els.forecastClose.tabIndex = -1;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      els.weather.classList.remove("is-expanded");
+      lockWeatherShellWidth(targetW);
+    });
+  });
+
+  if (weatherCloseTimer) clearTimeout(weatherCloseTimer);
+  weatherCloseTimer = window.setTimeout(() => {
+    weatherCloseTimer = null;
+    if (!els.weather.classList.contains("is-expanded")) {
+      els.weatherContent.hidden = true;
+      els.forecastClose.hidden = true;
+      els.forecastNowIcon.innerHTML = "";
+      els.forecastNowTemp.textContent = "";
+      els.forecastNowLabel.textContent = "";
+      els.forecastStats.innerHTML = "";
+      els.forecastHourly.innerHTML = "";
+      els.forecastDaily.innerHTML = "";
+      // Keep the narrow width from the close animation — clearing it
+      // let forecast content inflate max-content again.
+      settleWeatherChip();
+    }
+  }, WEATHER_ANIM_MS);
 }
 
 /**
@@ -1136,6 +1666,48 @@ function readAsDataUrl(file) {
     reader.onerror = () => reject(reader.error);
     reader.onload = () => resolve(String(reader.result));
     reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Resize and store a small favicon data URL.
+ * @param {File} file
+ * @returns {Promise<string>}
+ */
+async function readIconFile(file) {
+  const dataUrl = await readAsDataUrl(file);
+  if (file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg")) {
+    if (dataUrl.length > 40_000) throw new Error("Icon too large");
+    return dataUrl;
+  }
+
+  const img = await loadImage(dataUrl);
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return dataUrl;
+  const scale = Math.min(size / img.width, size / img.height);
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  const x = Math.round((size - w) / 2);
+  const y = Math.round((size - h) / 2);
+  ctx.clearRect(0, 0, size, size);
+  ctx.drawImage(img, x, y, w, h);
+  return canvas.toDataURL("image/png");
+}
+
+/**
+ * @param {string} src
+ * @returns {Promise<HTMLImageElement>}
+ */
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Could not read image"));
+    img.src = src;
   });
 }
 

@@ -6,6 +6,11 @@
 
 const CHEVRON = `<svg class="menu__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
 
+const PREVIEW = {
+  digital: `<span class="menu__preview menu__preview--digital" aria-hidden="true"><span class="menu__preview-time">12:34</span></span>`,
+  analog: `<span class="menu__preview menu__preview--analog" aria-hidden="true"><svg class="menu__preview-analog" viewBox="0 0 32 32"><circle class="menu__preview-analog-face" cx="16" cy="16" r="13.5"/><circle class="menu__preview-analog-ring" cx="16" cy="16" r="11.5"/><line class="menu__preview-analog-hour" x1="16" y1="16" x2="16" y2="10"/><line class="menu__preview-analog-minute" x1="16" y1="16" x2="21.5" y2="12"/><circle class="menu__preview-analog-pivot" cx="16" cy="16" r="1.2"/></svg></span>`,
+};
+
 /** @type {WeakMap<HTMLElement, {trigger: HTMLButtonElement, list: HTMLElement, select: HTMLSelectElement}>} */
 const menus = new WeakMap();
 
@@ -19,6 +24,32 @@ export function enhanceSelects(root = document) {
   root.querySelectorAll("select.field__input--select").forEach((select) => {
     if (select.dataset.enhanced === "true") return;
     enhanceSelect(/** @type {HTMLSelectElement} */ (select));
+  });
+}
+
+/**
+ * Tear down custom menus inside a root (and remove portaled lists).
+ * Call before clearing dynamic rows that contain enhanced selects.
+ * @param {ParentNode} [root]
+ */
+export function destroySelects(root = document) {
+  root.querySelectorAll(".menu").forEach((wrap) => {
+    const el = /** @type {HTMLElement} */ (wrap);
+    const refs = menus.get(el);
+    if (!refs) return;
+    if (openWrap === el) openWrap = null;
+    refs.list.remove();
+    menus.delete(el);
+
+    const { select } = refs;
+    if (select.parentNode === el) {
+      el.parentNode?.insertBefore(select, el);
+    }
+    delete select.dataset.enhanced;
+    select.classList.remove("menu__native");
+    select.tabIndex = 0;
+    select.removeAttribute("aria-hidden");
+    el.remove();
   });
 }
 
@@ -54,6 +85,13 @@ export function closeAllMenus() {
 }
 
 /**
+ * @returns {boolean}
+ */
+export function hasOpenMenu() {
+  return Boolean(document.querySelector(".menu.is-open"));
+}
+
+/**
  * @param {HTMLSelectElement} select
  */
 function enhanceSelect(select) {
@@ -64,6 +102,7 @@ function enhanceSelect(select) {
 
   const wrap = document.createElement("div");
   wrap.className = "menu";
+  if (select.dataset.menu) wrap.dataset.menu = select.dataset.menu;
   select.parentNode.insertBefore(wrap, select);
   wrap.appendChild(select);
 
@@ -77,6 +116,7 @@ function enhanceSelect(select) {
 
   const list = document.createElement("div");
   list.className = "menu__list";
+  if (select.dataset.menu) list.dataset.menu = select.dataset.menu;
   list.setAttribute("role", "listbox");
   list.hidden = true;
   document.body.appendChild(list);
@@ -123,6 +163,7 @@ function enhanceSelect(select) {
     const index = options.indexOf(/** @type {HTMLElement} */ (document.activeElement));
     if (e.key === "Escape") {
       e.preventDefault();
+      e.stopPropagation();
       closeMenu(wrap, trigger, list);
       trigger.focus();
     } else if (e.key === "ArrowDown") {
@@ -171,11 +212,17 @@ window.addEventListener("resize", () => {
  */
 function optionHtml(option) {
   if (!option) return "";
+  const previewKey = option.dataset.preview;
+  const previewMarkup =
+    previewKey && PREVIEW[/** @type {keyof typeof PREVIEW} */ (previewKey)]
+      ? PREVIEW[/** @type {keyof typeof PREVIEW} */ (previewKey)]
+      : "";
   const icon = option.dataset.icon;
-  const iconMarkup = icon
-    ? `<img class="menu__icon" src="${icon}" alt="" width="18" height="18" />`
-    : "";
-  return `${iconMarkup}<span class="menu__text">${escapeHtml(option.textContent || "")}</span>`;
+  const iconMarkup =
+    !previewMarkup && icon
+      ? `<img class="menu__icon" src="${icon}" alt="" width="18" height="18" />`
+      : "";
+  return `${previewMarkup}${iconMarkup}<span class="menu__text">${escapeHtml(option.textContent || "")}</span>`;
 }
 
 /**
@@ -218,7 +265,8 @@ function positionList(trigger, list) {
   const spaceBelow = window.innerHeight - rect.bottom - gap - viewportPad;
   const spaceAbove = rect.top - gap - viewportPad;
   const preferBelow = spaceBelow >= 160 || spaceBelow >= spaceAbove;
-  const maxHeight = Math.max(120, Math.min(240, preferBelow ? spaceBelow : spaceAbove));
+  const tall = list.dataset.menu === "clock-style";
+  const maxHeight = Math.max(120, Math.min(tall ? 280 : 240, preferBelow ? spaceBelow : spaceAbove));
 
   list.style.position = "fixed";
   list.style.zIndex = "1000";
